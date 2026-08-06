@@ -181,20 +181,44 @@ function cpuRun(games){
   _cpuSyncButtons();
   const step = () => {
     if (!CPU.running){ _cpuSyncButtons(); return; }
-    const end = Math.min(CPU.target, CPU.runs[CPU.keys[0]].games + CPU.chunk);
-    while (CPU.runs[CPU.keys[0]].games < end){
-      for (const k of CPU.keys){
-        const r = playSoloGame(COMPUTERS[k]);
-        const acc = CPU.runs[k];
-        tallyAdd(acc.score, r.score);
-        acc.played += r.played; acc.discarded += r.discarded; acc.games++;
+    // A throw inside a requestAnimationFrame callback vanishes: the loop simply
+    // stops, `running` stays true and the Run button stays disabled, with
+    // nothing on screen to say why. That is how a stale cached script showed up
+    // as "Lowest just doesn't do anything". Surface it instead.
+    try {
+      const end = Math.min(CPU.target, CPU.runs[CPU.keys[0]].games + CPU.chunk);
+      while (CPU.runs[CPU.keys[0]].games < end){
+        for (const k of CPU.keys){
+          const r = playSoloGame(COMPUTERS[k]);
+          const acc = CPU.runs[k];
+          tallyAdd(acc.score, r.score);
+          acc.played += r.played; acc.discarded += r.discarded; acc.games++;
+        }
       }
+    } catch (e){
+      CPU.running = false;
+      _cpuSyncButtons();
+      _cpuFail(e);
+      return;
     }
     cpuRender();
     if (CPU.runs[CPU.keys[0]].games < CPU.target) CPU._raf = requestAnimationFrame(step);
     else { CPU.running = false; _cpuSyncButtons(); }
   };
   CPU._raf = requestAnimationFrame(step);
+}
+
+function _cpuFail(e){
+  console.error('[computers] run failed:', e);
+  const host = document.getElementById('lab-cpu-body');
+  if (!host) return;
+  // A missing cross-file function is nearly always a half-updated cache, so say
+  // so rather than just printing the raw message.
+  const stale = /is not a function|is not defined/.test(String(e && e.message));
+  host.innerHTML = '<p class="err"><b>That run failed.</b> ' + (e && e.message ? e.message : e)
+    + (stale ? '<br>This usually means the page loaded a mix of new and cached scripts — '
+             + 'a hard refresh (<b>Ctrl+Shift+R</b>) should fix it.' : '')
+    + '</p>' + host.innerHTML;
 }
 
 function cpuStop(){

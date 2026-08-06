@@ -168,6 +168,11 @@ the real bot, since the point here is studying positions.
 Pages is built by `.github/workflows/pages.yml` (Actions), not the legacy
 builder — the legacy one failed opaquely and pinned the site to a stale commit.
 
+Local asset URLs carry `?v=DEV`; the workflow rewrites that to the commit sha
+before uploading, so a deploy can never be mixed with cached older scripts.
+(That mix is real: `Lowest` once broke while `Random` kept working, because only
+`Lowest` called a function that had moved into a file the browser had cached.)
+
 If a push does not appear on the site, check whether a run actually started:
 
 ```

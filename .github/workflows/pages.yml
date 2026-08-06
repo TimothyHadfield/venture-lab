@@ -30,6 +30,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # Stamp every local asset URL with the commit sha. Without this a returning
+      # visitor can end up running a NEW script against a CACHED OLD one — which
+      # is exactly how "Lowest" broke while "Random" kept working: only Lowest
+      # called a function that had moved into a file the browser had cached.
+      - name: Cache-bust local assets
+        run: sed -i "s/?v=DEV/?v=${GITHUB_SHA::7}/g" index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: '.'

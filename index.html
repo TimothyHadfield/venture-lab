@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#1a0f0a">
 <title>Venture Lab</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cinzel+Decorative:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="vendor/styles.css">
+<link rel="stylesheet" href="vendor/styles.css?v=DEV">
 <style>
 /* ---- Lab-only chrome. Everything else is the game's own styles.css. -------
    Deliberately built from the same CSS custom properties the board uses, so
@@ -107,6 +107,7 @@ table.st tr.tot td{border-top:1px solid rgba(212,168,67,.4);padding-top:9px}
 table.st tr.tot td.g{font-weight:700;color:var(--gold,#d4a843)}
 .dist{display:flex;gap:2px;align-items:flex-end;height:16px}
 .dist i{flex:1;background:var(--gold,#d4a843);border-radius:1px;height:100%}
+#lab-stats .err{background:rgba(192,96,90,.14);border:1px solid rgba(192,96,90,.5);border-radius:8px;padding:10px 14px;margin:0 0 14px;font-size:.9rem;line-height:1.5}
 #lab-stats .note{font-size:.84rem;opacity:.62;line-height:1.5;max-width:70ch}
 #lab-stats details.ctl{margin:6px 0 14px}
 #lab-stats details.ctl summary{cursor:pointer;font-size:.86rem;opacity:.75;padding:4px 0}
@@ -281,26 +282,26 @@ table.st tr.tot td.g{font-weight:700;color:var(--gold,#d4a843)}
 
 <!-- Vendored presentation stack — the live game's own client files, unchanged
      except for three clearly-marked LAB PATCH lines in rendering.js. -->
-<script src="vendor/src/config.js"></script>
-<script src="vendor/src/events.js"></script>
-<script src="vendor/src/math.js"></script>
-<script src="vendor/src/sections.js"></script>
-<script src="vendor/src/rules.js"></script>
-<script src="vendor/src/playable-targets.js"></script>
-<script src="vendor/src/engine.js"></script>
-<script src="vendor/src/sound.js"></script>
-<script src="vendor/src/layout.js"></script>
-<script src="vendor/src/constants.js"></script>
-<script src="vendor/src/geometry.js"></script>
-<script src="vendor/src/four-corner-renderer.js"></script>
-<script src="vendor/src/animation-queue.js"></script>
-<script src="vendor/src/text.js"></script>
-<script src="vendor/src/hand-sort.js"></script>
-<script src="vendor/src/rendering.js"></script>
+<script src="vendor/src/config.js?v=DEV"></script>
+<script src="vendor/src/events.js?v=DEV"></script>
+<script src="vendor/src/math.js?v=DEV"></script>
+<script src="vendor/src/sections.js?v=DEV"></script>
+<script src="vendor/src/rules.js?v=DEV"></script>
+<script src="vendor/src/playable-targets.js?v=DEV"></script>
+<script src="vendor/src/engine.js?v=DEV"></script>
+<script src="vendor/src/sound.js?v=DEV"></script>
+<script src="vendor/src/layout.js?v=DEV"></script>
+<script src="vendor/src/constants.js?v=DEV"></script>
+<script src="vendor/src/geometry.js?v=DEV"></script>
+<script src="vendor/src/four-corner-renderer.js?v=DEV"></script>
+<script src="vendor/src/animation-queue.js?v=DEV"></script>
+<script src="vendor/src/text.js?v=DEV"></script>
+<script src="vendor/src/hand-sort.js?v=DEV"></script>
+<script src="vendor/src/rendering.js?v=DEV"></script>
 
 <!-- The lab: game loop, offline opponent, perfect information, potential. -->
-<script src="lab.js"></script>
-<script src="stats.js"></script>
-<script src="computers.js"></script>
+<script src="lab.js?v=DEV"></script>
+<script src="stats.js?v=DEV"></script>
+<script src="computers.js?v=DEV"></script>
 </body>
 </html>

@@ -190,8 +190,18 @@ function statsRun(target){
   _statsSyncButtons();
   const step = () => {
     if (!STATS.running){ _statsSyncButtons(); return; }
-    const end = Math.min(STATS.target, STATS.acc.trials + STATS.chunk);
-    while (STATS.acc.trials < end) accumulate(STATS.acc, dealTrial());
+    try {
+      const end = Math.min(STATS.target, STATS.acc.trials + STATS.chunk);
+      while (STATS.acc.trials < end) accumulate(STATS.acc, dealTrial());
+    } catch (e){
+      // Same reason as computers.js: a throw in a rAF callback is invisible.
+      STATS.running = false; _statsSyncButtons();
+      console.error('[stats] run failed:', e);
+      const host = document.getElementById('lab-stats-body');
+      if (host) host.innerHTML = '<p class="err"><b>That run failed.</b> '
+        + (e && e.message ? e.message : e) + '</p>' + host.innerHTML;
+      return;
+    }
     statsRender();
     if (STATS.acc.trials < STATS.target) STATS._raf = requestAnimationFrame(step);
     else { STATS.running = false; _statsSyncButtons(); }
