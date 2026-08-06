@@ -104,14 +104,15 @@ venture and draw one, until the draw pile empties (52 turns, ending with 8 cards
 still in hand). A computer **discards only when it cannot legally play
 anything**, and never draws from the discards.
 
-| computer | strategy | median score |
-|---|---|---|
-| **Lowest** | plays the card that decreases that colour's potential the least | **73** |
-| **Lowest 3+** | Lowest, but won't *open* a colour unless holding 3+ of it | **70** |
-| **Wager Open** | Lowest, but a colour can only be *started* with a wager | **98** |
-| **Random** | plays a uniformly random legal card | **12** |
+| computer | strategy | median score | 8+ bonus |
+|---|---|---|---|
+| **Lowest** | plays the card that decreases that colour's potential the least | **73** | 13% |
+| **Lowest 3+** | Lowest, but won't *open* a colour unless holding 3+ of it | **70** | 11% |
+| **Wager Open** | Lowest, but a colour can only be *started* with a wager | **98** | 29% |
+| **Random** | plays a uniformly random legal card | **12** | 1% |
 
-Medians over 3,000 identical deals played by all four.
+Medians over 3,000 identical deals played by all four. **8+ bonus** is the
+share of games landing at least one venture of 8+ cards, worth +20 each.
 
 **Wager Open is far the strongest — +21.4 ± 0.7 over Lowest head to head on the
 same deal** (it wins 63.7% of deals, ties 18.8%). The reason is that the wager

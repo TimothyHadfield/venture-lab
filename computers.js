@@ -215,7 +215,8 @@ const CPU = { runs: null, running: false, target: 0, chunk: 200, _raf: 0, keys: 
 function cpuReset(){
   CPU.runs = {};
   for (const k of Object.keys(COMPUTERS)){
-    CPU.runs[k] = { score: newTally(SCORE_MIN, SCORE_MAX), played: 0, discarded: 0, games: 0 };
+    CPU.runs[k] = { score: newTally(SCORE_MIN, SCORE_MAX), played: 0, discarded: 0, games: 0,
+                    bonusGames: 0, bonusPiles: 0 };
   }
   cpuRender();
 }
@@ -247,6 +248,14 @@ function cpuRun(games){
           const acc = CPU.runs[k];
           tallyAdd(acc.score, r.score);
           acc.played += r.played; acc.discarded += r.discarded; acc.games++;
+          // The +20 length bonus: a venture of bonusThreshold cards or more.
+          // Counted per GAME (did it land at all) and per pile, since one game
+          // can finish more than one long venture.
+          let bp = 0;
+          for (const c of CONFIG.colors)
+            if (r.piles[c].length >= CONFIG.scoring.bonusThreshold) bp++;
+          if (bp) acc.bonusGames++;
+          acc.bonusPiles += bp;
         }
       }
     } catch (e){
@@ -337,6 +346,11 @@ function cpuRender(){
       + '<td class="med">' + s.median + '</td>'
       + '<td class="num">' + s.mean.toFixed(1) + '</td>'
       + '<td class="num">' + s.min + ' … ' + s.max + '</td>'
+      + '<td class="num" title="' + a.bonusGames.toLocaleString() + ' of ' + a.games.toLocaleString()
+        + ' games landed at least one venture of ' + CONFIG.scoring.bonusThreshold
+        + '+ cards (+' + CONFIG.scoring.bonusPoints + '); '
+        + (a.bonusPiles / a.games).toFixed(2) + ' such ventures per game">'
+        + (100 * a.bonusGames / a.games).toFixed(1) + '%</td>'
       + '<td class="num">' + (100 * a.discarded / (a.played + a.discarded)).toFixed(1) + '%</td>'
       + '</tr>';
   }
@@ -352,7 +366,9 @@ function cpuRender(){
 
   host.innerHTML =
       '<table class="st"><thead><tr><th>Computer</th><th>Median score</th><th>Mean</th>'
-    +   '<th>Range</th><th>Turns discarded</th></tr></thead><tbody>' + rows + '</tbody></table>'
+    +   '<th>Range</th><th title="Share of games landing at least one venture of '
+    +   CONFIG.scoring.bonusThreshold + '+ cards">' + CONFIG.scoring.bonusThreshold
+    +   '+ bonus</th><th>Turns discarded</th></tr></thead><tbody>' + rows + '</tbody></table>'
     + charts;
 }
 
