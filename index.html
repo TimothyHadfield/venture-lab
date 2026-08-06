@@ -61,6 +61,52 @@
 #vc-deck-h{color:#c0a030;font:700 12px monospace}
 #vc-deck-list{overflow:hidden}
 
+#lab-stats{
+  position:fixed;inset:44px 0 0 0;z-index:4000;overflow:auto;
+  background:var(--felt,#1a0f0a);color:var(--parchment,#e8dcc0);
+  font-family:'Crimson Pro',Georgia,serif;
+}
+#lab-stats .wrap{max-width:900px;margin:0 auto;padding:22px 18px 60px}
+#lab-stats h1{font-family:'Cinzel Decorative','Cinzel',serif;color:var(--gold,#d4a843);
+  font-size:1.5rem;margin:0 0 6px;letter-spacing:.04em}
+#lab-stats .lede{margin:0 0 18px;max-width:70ch;line-height:1.55;opacity:.85}
+#lab-stats .ctrls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+#lab-stats label{font-size:.9rem;opacity:.85}
+#lab-stats input[type=number]{width:110px;font:inherit;color:var(--parchment,#e8dcc0);
+  background:rgba(255,255,255,.06);border:1px solid rgba(212,168,67,.32);border-radius:6px;padding:4px 8px}
+#lab-stats button{font:inherit;font-size:.9rem;color:var(--parchment,#e8dcc0);
+  background:rgba(255,255,255,.06);border:1px solid rgba(212,168,67,.32);
+  border-radius:6px;padding:4px 12px;cursor:pointer}
+#lab-stats button.primary{background:var(--gold,#d4a843);border-color:var(--gold,#d4a843);color:#241606;font-weight:600}
+#lab-stats button:disabled{opacity:.5;cursor:default}
+#lab-stats .count{font-size:.9rem;opacity:.75}
+#lab-stats .progwrap{flex:1;min-width:80px;height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden}
+#lab-stats-prog{display:block;height:100%;width:0;background:var(--gold,#d4a843);transition:width .1s linear}
+
+.headline{border:1px solid rgba(212,168,67,.28);border-radius:10px;padding:14px 16px;margin-bottom:18px;
+  background:rgba(255,255,255,.03)}
+.hl-lab{font-size:.82rem;letter-spacing:.08em;text-transform:uppercase;opacity:.65;margin-bottom:6px}
+.hl-nums{display:flex;gap:10px;flex-wrap:wrap}
+.hl-nums span{font-family:'Cinzel',Georgia,serif;font-size:1.9rem;font-weight:700;
+  color:var(--gold-bright,#f0c860);min-width:2.4ch;text-align:center}
+.hl-sub{font-size:.82rem;opacity:.6;margin-top:6px}
+
+table.st{width:100%;border-collapse:collapse;margin-bottom:14px;font-size:.9rem}
+table.st th{text-align:left;font-weight:600;font-size:.78rem;letter-spacing:.05em;
+  text-transform:uppercase;opacity:.55;padding:6px 8px;border-bottom:1px solid rgba(212,168,67,.2)}
+table.st td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:middle}
+table.st td.g{font-weight:600}
+table.st td.g .sub{display:block;font-size:.74rem;font-weight:400;opacity:.5;text-transform:lowercase;letter-spacing:0}
+table.st th .sub{font-weight:400;opacity:.7;text-transform:none;letter-spacing:0}
+table.st td.med{font-family:'Cinzel',Georgia,serif;font-size:1.15rem;font-weight:700;color:var(--gold-bright,#f0c860)}
+table.st td.num{font-variant-numeric:tabular-nums;opacity:.8}
+table.st td.d{width:42%}
+.dist{display:flex;gap:2px;align-items:flex-end;height:16px}
+.dist i{flex:1;background:var(--gold,#d4a843);border-radius:1px;height:100%}
+#lab-stats .note{font-size:.84rem;opacity:.62;line-height:1.5;max-width:70ch}
+#lab-stats details.ctl{margin:6px 0 14px}
+#lab-stats details.ctl summary{cursor:pointer;font-size:.86rem;opacity:.75;padding:4px 0}
+
 #lab-flash{
   position:fixed;left:50%;top:46px;transform:translateX(-50%);z-index:7000;
   background:rgba(26,15,10,.94);border:1px solid var(--gold,#d4a843);border-radius:8px;
@@ -94,6 +140,7 @@
   <button id="lab-deck" title="Draw pile as colour columns on the right">Deck columns</button>
   <button id="lab-opp" title="Opponent's hand face-up">Opponent hand</button>
   <button id="lab-pot" title="Per-colour potential under each pile">Potential</button>
+  <button id="lab-statsbtn" title="Dealing statistics">Statistics</button>
 </div>
 <div id="game-screen" class="screen active">
   <span id="opponent-name-store" style="display:none">Opponent</span>
@@ -170,6 +217,29 @@
   <div id="idle-overlay" style="position:absolute;inset:0;z-index:5100;background:rgba(53,42,17,.82);align-items:center;justify-content:center;flex-direction:column;cursor:pointer"></div>
 </div>
 
+<!-- STATISTICS SECTION — dealing trials. Hidden until opened from the bar. -->
+<div id="lab-stats" style="display:none">
+  <div class="wrap">
+    <h1>Dealing statistics</h1>
+    <p class="lede">Each trial shuffles a full deck, deals 8 cards to each player, then
+      deals alternately until the deck is empty — so you finish with 30 of the 60 cards.
+      Your five colour counts are sorted lowest to highest; <b>group 1</b> is whichever
+      colour you got fewest of that trial, <b>group 5</b> whichever you got most of.
+      The groups are ranks, not colours.</p>
+
+    <div class="ctrls">
+      <label>Trials <input id="lab-stats-n" type="number" min="1" max="10000000" step="1000" value="10000"></label>
+      <button id="lab-stats-run" class="primary">Run trials</button>
+      <button id="lab-stats-stop" style="display:none">Stop</button>
+      <button id="lab-stats-reset">Reset</button>
+      <span id="lab-stats-count" class="count">0 trials</span>
+      <span class="progwrap"><span id="lab-stats-prog"></span></span>
+    </div>
+
+    <div id="lab-stats-body"></div>
+  </div>
+</div>
+
 <div id="lab-flash"></div>
 <div id="lab-result"></div>
 
@@ -194,5 +264,6 @@
 
 <!-- The lab: game loop, offline opponent, perfect information, potential. -->
 <script src="lab.js"></script>
+<script src="stats.js"></script>
 </body>
 </html>

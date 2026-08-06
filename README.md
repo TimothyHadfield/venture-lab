@@ -52,12 +52,40 @@ Reading it:
   remaining card of that colour, which never happens. Both players can show a
   high number for the same colour; they are competing for the same cards.
 
+## Dealing statistics
+
+A second section (**Statistics** in the bar) runs dealing trials.
+
+**One trial:** shuffle a full deck, deal 8 cards to each player, then deal
+alternately until the deck is empty. All 60 cards go out, so you finish with 30.
+
+**Statistic 1 — colour spread by rank.** Count your cards of each colour, then
+sort those five counts ascending. Group 1 is whichever colour you got fewest of
+*that trial*, group 5 whichever you got most of — the groups are ranks, not
+colours, so group 1 is red in one trial and blue in the next. The reported
+figure is each group's median across all trials.
+
+Over 20,000 trials the medians are **4 · 5 · 6 · 7 · 8**.
+
+That spread is the whole point. Tallied by *colour* instead, every colour sits
+flat at 6 — averaging hides the lopsidedness that ranking measures. You should
+expect one colour you are starved of and one you are flooded with, every game.
+
+Note the deal only ever produces one independent data set per trial: with all
+60 cards dealt, the opponent's count for a colour is exactly `12 −` yours, so
+their data is a deterministic mirror, not a second sample.
+
+Verified against theory — each colour count is a hypergeometric draw (30 from
+60, 12 per colour), and the simulated distribution matches the exact
+probabilities to within 0.3 percentage points at 20k trials.
+
 ## Layout of the code
 
 | path | what it is |
 |---|---|
 | `index.html` | the page: game-screen markup + the lab control bar |
-| `lab.js` | **the only original code** — game loop, offline opponent, reveals, potential |
+| `lab.js` | game loop, offline opponent, reveals, potential |
+| `stats.js` | the dealing-trials section |
 | `vendor/styles.css`, `vendor/src/*.js` | the live Venture client's presentation stack, unchanged apart from two lines |
 | `simple.html` | the earlier standalone Venture Lab (self-contained, own renderer) |
 
