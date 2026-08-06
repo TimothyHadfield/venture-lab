@@ -72,8 +72,13 @@ score of playing every card you received of that colour, lowest to highest, as
 one venture — the game's own `MATH.scorePlayPile`, so wagers multiply and 8+
 cards take the bonus. Red 2,4,7,9,10 → (32 − 20) × 1 = **12**.
 
-Over 20,000 trials the medians are **−9 · 4 · 15 · 28 · 64**, with a median
-total of **101**.
+Over 20,000 trials the medians are **−9 · 4 · 15 · 28 · 64**, and a **Total**
+row under group 5 gives the whole hand's potential: median **102**.
+
+The total is tallied per trial and medianed like the groups — it is not the
+five group medians added up, which would be wrong (medians aren't additive).
+The *means* are additive, and that identity is asserted in testing: the total
+mean equals the sum of the group means exactly.
 
 That first number is the striking one: your *worst* colour is typically worth
 **negative** points, so playing it out costs you. Nearly all of a hand's value

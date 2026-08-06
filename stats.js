@@ -251,6 +251,17 @@ function _rows(tallies, labels, fmt, bins, colorLabels){
   return out;
 }
 
+/* A summary row appended under the five groups — same columns, ruled off. */
+function _totalRow(label, t, bins, fmt){
+  const s = tallyStats(t);
+  if (!s) return '';
+  return '<tr class="tot"><td class="g">' + label + '</td>'
+    + '<td class="med">' + fmt(s.median) + '</td>'
+    + '<td class="num">' + s.mean.toFixed(2) + '</td>'
+    + '<td class="num">' + s.min + ' … ' + s.max + '</td>'
+    + '<td class="d">' + _bar(s.tally, bins) + '</td></tr>';
+}
+
 function _table(headFirst, distLabel, rows){
   return '<table class="st"><thead><tr><th>' + headFirst + '</th><th>Median</th><th>Mean</th>'
        + '<th>Range</th><th>Distribution <span class="sub">' + distLabel + '</span></th></tr></thead>'
@@ -294,8 +305,13 @@ function statsRender(){
     +   'plus <b>' + CONFIG.scoring.bonusPoints + '</b> at ' + CONFIG.scoring.bonusThreshold
     +   '+ cards. Sorted worst to best, so group 1 is whichever colour came out worst that trial.</p>'
     + _headline('Median potential, ranked', acc.potByRank, id,
-        'worst → best · median total across all five: <b>' + totS.median + '</b>')
-    + _table('Group', POT_MIN + ' → ' + POT_MAX, _rows(acc.potByRank, RANK_LABEL, id, 26))
+        'worst → best · total across all five: <b>' + totS.median + '</b>')
+    // The total is a row of its own rather than a sixth group: it is the whole
+    // hand's potential per trial, tallied and medianed like the groups — NOT the
+    // five group medians added up, which would be wrong (medians aren't additive).
+    + _table('Group', POT_MIN + ' → ' + POT_MAX,
+        _rows(acc.potByRank, RANK_LABEL, id, 26)
+        + _totalRow('Total<span class="sub">all five colours</span>', acc.potTotal, 26, id))
 
     // ---- statistic 1: counts ----
     + '<h2>Cards per colour</h2>'
