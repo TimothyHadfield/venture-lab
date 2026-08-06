@@ -59,13 +59,25 @@ A second section (**Statistics** in the bar) runs dealing trials.
 **One trial:** shuffle a full deck, deal 8 cards to each player, then deal
 alternately until the deck is empty. All 60 cards go out, so you finish with 30.
 
-**Statistic 1 — colour spread by rank.** Count your cards of each colour, then
-sort those five counts ascending. Group 1 is whichever colour you got fewest of
-*that trial*, group 5 whichever you got most of — the groups are ranks, not
-colours, so group 1 is red in one trial and blue in the next. The reported
-figure is each group's median across all trials.
+Both statistics are reported **by rank**: each trial's five values are sorted,
+so group 1 is whichever colour came out worst *that trial* and group 5 whichever
+came out best. The groups are ranks, not colours — group 1 is red in one trial
+and blue in the next. The reported figure is each group's median across trials.
 
+**Statistic 1 — cards per colour.** How many cards of each colour you received.
 Over 20,000 trials the medians are **4 · 5 · 6 · 7 · 8**.
+
+**Statistic 2 — potential points per colour.** What those cards are *worth*: the
+score of playing every card you received of that colour, lowest to highest, as
+one venture — the game's own `MATH.scorePlayPile`, so wagers multiply and 8+
+cards take the bonus. Red 2,4,7,9,10 → (32 − 20) × 1 = **12**.
+
+Over 20,000 trials the medians are **−9 · 4 · 15 · 28 · 64**, with a median
+total of **101**.
+
+That first number is the striking one: your *worst* colour is typically worth
+**negative** points, so playing it out costs you. Nearly all of a hand's value
+sits in its top two or three colours.
 
 That spread is the whole point. Tallied by *colour* instead, every colour sits
 flat at 6 — averaging hides the lopsidedness that ranking measures. You should

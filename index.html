@@ -69,6 +69,8 @@
 #lab-stats .wrap{max-width:900px;margin:0 auto;padding:22px 18px 60px}
 #lab-stats h1{font-family:'Cinzel Decorative','Cinzel',serif;color:var(--gold,#d4a843);
   font-size:1.5rem;margin:0 0 6px;letter-spacing:.04em}
+#lab-stats h2{font-family:'Cinzel',Georgia,serif;color:var(--gold,#d4a843);font-size:1.05rem;margin:26px 0 4px;letter-spacing:.03em}
+#lab-stats h2:first-of-type{margin-top:6px}
 #lab-stats .lede{margin:0 0 18px;max-width:70ch;line-height:1.55;opacity:.85}
 #lab-stats .ctrls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px}
 #lab-stats label{font-size:.9rem;opacity:.85}
@@ -223,9 +225,10 @@ table.st td.d{width:42%}
     <h1>Dealing statistics</h1>
     <p class="lede">Each trial shuffles a full deck, deals 8 cards to each player, then
       deals alternately until the deck is empty — so you finish with 30 of the 60 cards.
-      Your five colour counts are sorted lowest to highest; <b>group 1</b> is whichever
-      colour you got fewest of that trial, <b>group 5</b> whichever you got most of.
-      The groups are ranks, not colours.</p>
+      Each trial then measures, per colour, how many cards you got and what they are worth.
+      Both are reported by <b>rank</b>: the five values are sorted, so <b>group 1</b> is
+      whichever colour came out worst <i>that trial</i> and <b>group 5</b> whichever came out
+      best. The groups are ranks, not colours — group 1 is red in one trial, blue in the next.</p>
 
     <div class="ctrls">
       <label>Trials <input id="lab-stats-n" type="number" min="1" max="10000000" step="1000" value="10000"></label>
