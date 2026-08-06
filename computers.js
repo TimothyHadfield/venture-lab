@@ -74,6 +74,20 @@ function _pickCheapest(cards, costOf){
   return best;
 }
 
+/* The Lowest family, in one place. Play the cheapest card the gate permits; if
+   the gate permits nothing, discard by the same cost rule and SAY so. `openable`
+   decides whether a card may be played, and only ever matters for the first card
+   of a colour — a started venture is already paid for, so there is nothing left
+   to gate. Pass null for no gate. */
+function _lowestGated(view, openable){
+  const allowed = openable ? view.playable.filter(openable) : view.playable;
+  if (allowed.length)
+    return { action:'play',
+             card: _pickCheapest(allowed, c => playCost(view.piles, view.pool, c)) };
+  return { action:'discard',
+           card: _pickCheapest(view.hand, c => discardCost(view.piles, view.pool, c)) };
+}
+
 /* ============================================================================
    THE COMPUTERS
    ========================================================================== */
@@ -84,13 +98,7 @@ const COMPUTERS = {
     blurb: 'Plays the card that decreases that colour\'s potential the least. ' +
            'Ties break to the lowest card. When nothing is playable it discards ' +
            'by the same rule — the card whose loss costs the least potential.',
-    decide(view){
-      if (view.playable.length)
-        return { action:'play',
-                 card: _pickCheapest(view.playable, c => playCost(view.piles, view.pool, c)) };
-      return { action:'discard',
-               card: _pickCheapest(view.hand, c => discardCost(view.piles, view.pool, c)) };
-    },
+    decide(view){ return _lowestGated(view, null); },
   },
 
   lowest3: {
@@ -101,22 +109,22 @@ const COMPUTERS = {
            'it is willing to play, it discards — so unlike the others it can discard ' +
            'on a turn where a legal play existed.',
     decide(view){
-      // The gate applies only to the FIRST card of a colour — an empty pile. A
-      // started venture is already paid for, so there is nothing left to gate.
       // Wagers are gated too: a wager on an empty pile opens the colour just as
       // a number does, and opening a colour you cannot fill is the thing being
       // avoided.
-      const openable = c => view.piles[c.color].length > 0 ||
-        view.hand.reduce((n, x) => n + (x.color === c.color ? 1 : 0), 0) >= 3;
+      return _lowestGated(view, c => view.piles[c.color].length > 0 ||
+        view.hand.reduce((n, x) => n + (x.color === c.color ? 1 : 0), 0) >= 3);
+    },
+  },
 
-      const allowed = view.playable.filter(openable);
-      if (allowed.length)
-        return { action:'play',
-                 card: _pickCheapest(allowed, c => playCost(view.piles, view.pool, c)) };
-      // Nothing it is willing to play — discard, and say so, or the engine
-      // would play the discard for us whenever it happened to be legal.
-      return { action:'discard',
-               card: _pickCheapest(view.hand, c => discardCost(view.piles, view.pool, c)) };
+  wageropen: {
+    name: 'Wager Open',
+    blurb: 'Lowest, but a colour can only be STARTED with a wager — a number may ' +
+           'never be the first card of a venture. Once the colour is open it plays ' +
+           'there exactly like Lowest, numbers included. Holding no wager of a ' +
+           'colour it has not opened, it simply will not go there.',
+    decide(view){
+      return _lowestGated(view, c => view.piles[c.color].length > 0 || c.value === 0);
     },
   },
 
