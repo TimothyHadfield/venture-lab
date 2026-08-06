@@ -7,8 +7,10 @@
    cards, then each turn play one card to a venture and draw one. The game ends
    when the draw pile empties — 52 turns, ending with 8 cards still in hand.
 
-   The discard pile exists but is only ever a fallback: a computer discards ONLY
-   when it cannot legally play anything, and never draws from the discards.
+   The discard pile is a fallback, never a source: no computer ever draws from
+   it. Most discard only when nothing is legally playable; a computer may also
+   discard by choice if its own strategy refuses every legal play (Lowest 3+
+   does exactly that), which is why intent is explicit in the contract below.
 
    ── WHAT A COMPUTER KNOWS ─────────────────────────────────────────────────
    With no opponent, the cards that remain unseen are exactly the ones in the
@@ -23,8 +25,10 @@
        view.pool      {colour: [cards still unseen — deck + hand]}
        view.playable  the subset of hand that can legally be played now
        view.rng()     random in [0,1)
-   and returns { card } — the card to play, or to discard if `playable` is
-   empty. Everything else (legality, drawing, scoring) is handled here.
+   and returns { card, action } where action is 'play' or 'discard'. Say which:
+   the engine will NOT guess, because a computer that means to discard a card
+   that happens to be playable would otherwise have it played instead.
+   Everything else (legality, drawing, scoring) is handled here.
    ========================================================================== */
 
 /* Potential of one colour: what that colour scores if every card still
@@ -82,8 +86,37 @@ const COMPUTERS = {
            'by the same rule — the card whose loss costs the least potential.',
     decide(view){
       if (view.playable.length)
-        return { card: _pickCheapest(view.playable, c => playCost(view.piles, view.pool, c)) };
-      return { card: _pickCheapest(view.hand, c => discardCost(view.piles, view.pool, c)) };
+        return { action:'play',
+                 card: _pickCheapest(view.playable, c => playCost(view.piles, view.pool, c)) };
+      return { action:'discard',
+               card: _pickCheapest(view.hand, c => discardCost(view.piles, view.pool, c)) };
+    },
+  },
+
+  lowest3: {
+    name: 'Lowest 3+',
+    blurb: 'Lowest, but it will not OPEN a colour unless it is holding at least 3 ' +
+           'cards of that colour (the candidate counts toward the 3). Once a venture ' +
+           'is started it plays there exactly like Lowest. If the gate leaves nothing ' +
+           'it is willing to play, it discards — so unlike the others it can discard ' +
+           'on a turn where a legal play existed.',
+    decide(view){
+      // The gate applies only to the FIRST card of a colour — an empty pile. A
+      // started venture is already paid for, so there is nothing left to gate.
+      // Wagers are gated too: a wager on an empty pile opens the colour just as
+      // a number does, and opening a colour you cannot fill is the thing being
+      // avoided.
+      const openable = c => view.piles[c.color].length > 0 ||
+        view.hand.reduce((n, x) => n + (x.color === c.color ? 1 : 0), 0) >= 3;
+
+      const allowed = view.playable.filter(openable);
+      if (allowed.length)
+        return { action:'play',
+                 card: _pickCheapest(allowed, c => playCost(view.piles, view.pool, c)) };
+      // Nothing it is willing to play — discard, and say so, or the engine
+      // would play the discard for us whenever it happened to be legal.
+      return { action:'discard',
+               card: _pickCheapest(view.hand, c => discardCost(view.piles, view.pool, c)) };
     },
   },
 
@@ -92,8 +125,10 @@ const COMPUTERS = {
     blurb: 'Plays a uniformly random legal card. When nothing is playable it ' +
            'discards a uniformly random card. The baseline everything else has to beat.',
     decide(view){
-      const from = view.playable.length ? view.playable : view.hand;
-      return { card: from[Math.floor(view.rng() * from.length)] };
+      const play = view.playable.length > 0;
+      const from = play ? view.playable : view.hand;
+      return { action: play ? 'play' : 'discard',
+               card: from[Math.floor(view.rng() * from.length)] };
     },
   },
 };
@@ -121,18 +156,29 @@ function playSoloGame(bot, rng){
   while (deck.length){
     const playable = hand.filter(c => RULES.canPlayOnPlayPile(c, piles[c.color]));
     const view = { hand, piles, pool, playable, rng };
-    const card = bot.decide(view).card;
+    const move = bot.decide(view);
+    const card = move.card;
+
+    // Intent has to be EXPLICIT. Inferring "play if the card happens to be
+    // legal" silently overrode a computer that had deliberately chosen to
+    // discard — Lowest 3+ refuses to open a thin colour, but if the card it
+    // picked to throw away was itself playable, it got played anyway and the
+    // whole restriction leaked.
+    const wantsPlay = move.action !== 'discard';
+    const canPlay = playable.indexOf(card) >= 0;
+    if (wantsPlay && !canPlay)
+      throw new Error('computer tried to play an illegal card: ' + card.id);
 
     const i = hand.indexOf(card);
     hand.splice(i, 1);
     const pi = pool[card.color].indexOf(card);
     if (pi >= 0) pool[card.color].splice(pi, 1);
 
-    if (playable.length && playable.indexOf(card) >= 0){
+    if (wantsPlay){
       piles[card.color].push(card);
       played++;
     } else {
-      discards[card.color].push(card);   // fallback only: nothing was playable
+      discards[card.color].push(card);
       discarded++;
     }
     hand.push(deck.pop());               // the draw that ends the game when it empties

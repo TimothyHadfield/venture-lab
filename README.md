@@ -107,7 +107,16 @@ anything**, and never draws from the discards.
 | computer | strategy | median score |
 |---|---|---|
 | **Lowest** | plays the card that decreases that colour's potential the least | **73** |
+| **Lowest 3+** | Lowest, but won't *open* a colour unless holding 3+ of it | **69.5** |
 | **Random** | plays a uniformly random legal card | **12** |
+
+Medians over 3,000 identical deals played by all three.
+
+**The 3+ gate makes it slightly worse**, which is worth knowing: head to head on
+the same deal, plain Lowest wins by a mean of **4.9 ± 0.6** points. Refusing to
+open a thin colour costs tempo without buying much safety — in solitaire the
+whole deck comes to you eventually, so an early open usually gets filled, and
+"least potential lost" already declines the genuinely bad opens on its own.
 
 With no opponent, the cards still unseen are exactly deck + hand, so a computer
 can know that *set* (not its order) just by tracking what has been played and
@@ -119,9 +128,10 @@ onto an empty pile costs **102** while a red wager costs **0**. Wagers-first and
 play-low both fall out of the one rule rather than being written in.
 
 **Adding a computer** — add an entry to `COMPUTERS` in `computers.js` with a
-`decide(view)` returning `{ card }`. `view` gives the hand, piles, pool, the
-legally playable subset, and an rng; legality, drawing and scoring are handled
-for you.
+`decide(view)` returning `{ card, action }`, action being `'play'` or
+`'discard'`. `view` gives the hand, piles, pool, the legally playable subset,
+and an rng; legality, drawing and scoring are handled for you. Say the action
+explicitly — the engine will not guess, and rejects a `'play'` that is illegal.
 
 ## Layout of the code
 
