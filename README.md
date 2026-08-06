@@ -1,43 +1,88 @@
 # Venture Lab
 
-A standalone, offline **Venture** card game — a sandbox for tinkering with
-probability, computer opponents, and strategy. No online play, no accounts,
-no build step: it's a single `index.html` you can open in any browser.
+A **perfect-information Venture board** for studying positions: the real game's
+board, with the draw pile and the opponent's hand face-up, plus a per-colour
+**potential** readout under every pile.
 
-**▶ Play:** https://timothyhadfield.github.io/venture-lab/
+Open `index.html` in a browser. No build step, no accounts, no network.
+
+> ⚠️ **Not published.** This version vendors the live Venture client's own
+> presentation code (see below), so it is a local study tool. Deploying it to
+> the public GitHub Pages site would republish that code — decide that
+> deliberately before pushing.
+
+## What's on screen
+
+The board *is* the live game's board — same layout engine, same card art, same
+fans and animations. What's different:
+
+- **Draw pile face-up.** The next card sits on top of the stack. **Fan deck**
+  spreads the whole pile out in true draw order, next card at the front.
+- **Opponent's hand face-up**, in place, right way up.
+- **Potential** — one number under each of the ten piles (yours and theirs).
+
+Each toggle is a button in the top bar; all three are **on by default**.
+
+### Potential
+
+For one colour and one player: **the score that pile would reach if that player
+received every card still in play that could legally be added to it.**
+
+"Still in play" means the draw pile plus both hands. Cards already played or
+sitting in a discard pile are excluded — a played card is gone, and a discarded
+one is only reachable as a pile top under conditions, so counting it would
+overstate the ceiling.
+
+There is nothing to search: a venture ascends and values are unique per colour,
+so every number above the pile's top can be added, and wagers only while the
+pile has no numbers yet.
+
+Reading it:
+
+- It starts at **+156** everywhere — the whole colour is still available, and
+  `(2+…+10 − 20) × 4 wagers + 20 bonus` is the theoretical maximum venture.
+- It falls as cards leave play, and **collapses when you play high**: put a 9
+  down and everything below 9 is locked out of that pile forever. The gap
+  between a pile's score and its potential is the headroom you still have.
+- It is a **ceiling, not a forecast** — it assumes one player gets every
+  remaining card of that colour, which never happens. Both players can show a
+  high number for the same colour; they are competing for the same cards.
+
+## Layout of the code
+
+| path | what it is |
+|---|---|
+| `index.html` | the page: game-screen markup + the lab control bar |
+| `lab.js` | **the only original code** — game loop, offline opponent, reveals, potential |
+| `vendor/styles.css`, `vendor/src/*.js` | the live Venture client's presentation stack, unchanged apart from four lines |
+| `simple.html` | the earlier standalone Venture Lab (self-contained, own renderer) |
+
+`lab.js` supplies what the vendored stack used to get from Firebase,
+multiplayer, auth, stats and the AI worker — none of which is vendored. The
+player actions (`selectCard` / `playToExpedition` / `discardTo` / `drawFrom*`)
+are lifted from the game's own `gamelogic.js` so interaction behaves identically.
+
+### The four vendor edits
+
+All marked `LAB PATCH`, all no-ops when `LAB` is undefined:
+
+- `rendering.js` — reveal the opponent's hand in live play (upstream: replay only)
+- `rendering.js` — reveal the draw pile in live play (upstream: replay only)
+- `rendering.js` — order and z-band the fanned deck by draw order in live play
+- `layout.js` — subtract the lab bar's height from the viewport the board solves against
+
+Re-vendoring from the live site means re-applying these four.
 
 ## The game
 
-Build **ventures** — ascending runs of a single colour in your play area.
-Wagers (`×2`) must come *before* any numbers and multiply that venture.
+Build **ventures** — ascending runs of a single colour. Wagers (`×2`) must come
+*before* any numbers and multiply that venture.
 
-- A venture scores **(sum of numbers − 20) × (1 + wagers)**, plus **+20** if it
-  reaches 8 cards. The −20 is the cost of starting, so short ventures lose points.
+- A venture scores **(sum of numbers − 20) × (1 + wagers)**, plus **+20** at 8
+  cards. The −20 is the cost of starting, so short ventures lose points.
 - **Your turn:** ① play one card to a venture, or discard it · ② draw from the
-  deck or a discard-pile top (not the pile you just discarded to).
+  deck or a discard-pile top (not the one you just discarded to).
 - The game ends when the **draw pile empties**. Highest total wins.
 
-## Modes
-
-- **You vs Computer** — three AI tiers: Casual (loose), Solid (greedy), Sharp
-  (greedy + value nudge).
-- **2-Player Hotseat** — pass the device back and forth.
-
-## The probability panel
-
-The right sidebar shows what's still **unseen** — the cards in the deck plus the
-opponent's hand, which you can't tell apart. It's a starting point for exploring
-the odds: what's likely to come next, which colours are running dry, and how that
-should steer which ventures you commit to.
-
-## Tinkering
-
-Everything is in `index.html`. Good places to experiment:
-
-- `aiMove()` — the computer's decision logic. Add a smarter tier, a lookahead, or
-  a Monte-Carlo rollout here.
-- `pileScore()` / the constants at the top — change the scoring or deck shape.
-- `renderProb()` / `unseen()` — build richer probability tools (draw odds,
-  expected value of a venture, opponent-hand inference).
-
-No dependencies. Edit, refresh, done.
+The opponent is a local heuristic (Casual / Solid / Sharp) — deliberately not
+the real bot, since the point here is studying positions.

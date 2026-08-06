@@ -1,0 +1,827 @@
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#120c07;--parchment:#f0e0c0;--parchment-dark:#b8a888;
+  --text-muted:.72;   /* one dim level for secondary labels (was 6 ad-hoc opacities) */
+  /* Gold — one source of truth. Change --gold to reskin ALL gold (text, borders,
+     glows via color-mix, button gradients); --gold-bright derives from it, --gold-dim/
+     -deep alias it (round-2 minimal palette). */
+  --gold:#d4a843;
+  --gold-bright:color-mix(in srgb,var(--gold),white 22%);
+  /* Round-2 minimal palette: dim+deep collapse to base --gold (flattens the
+     primary-button gradients to flat gold). Re-split by restoring the color-mix. */
+  --gold-dim:var(--gold);
+  --gold-deep:var(--gold);
+  /* All sizing vars (--card-*, --text-*, --gap-*, --slot-pad, --border-w,
+     --board-margin, --space-micro) are populated at startup and on resize by computeLayout()
+     in layout.js. No fallbacks — missing vars should surface as bugs, not silent drift. */
+  /* Surfaces (warm browns) — round-2 minimal palette: 7 browns collapsed to 3 real
+     levels (base --bg / --surface / --surface-raised). Each retired brown aliases onto
+     its NEAREST kept level (min perceptual shift): surface-deep→bg (also the dark
+     border/outline color — kept near-black), raised-deep→raised (flattens the rest-
+     button gradient), pressed→raised, card-back→surface. Re-split by restoring the
+     original hexes: surface-deep #1a0f0a, raised-deep #221810, pressed #3a2e20,
+     card-back #2a1a0e. */
+  --surface:#2a1f14;--surface-raised:#30241a;
+  --surface-deep:var(--bg);--surface-raised-deep:var(--surface-raised);
+  --surface-pressed:var(--surface-raised);--card-back:var(--surface);
+  /* Empty play/discard slot = a shallow felt WELL (recessed, neutral — no lane colour).
+     --felt-base = the felt surface tone; --felt-texture = fine greyscale fibre noise laid
+     over it at low opacity to read as cloth (see .card.pile-space). */
+  --felt-base:#15110d;
+  --felt-texture:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
+  /* Lobby control width = the box CONTENT width (box outer --box-w minus its two
+     horizontal paddings), so the stacked main-menu controls line up with, and scale
+     exactly like, the buttons inside every dialog box. (Was a fixed 340px cap that
+     didn't grow on wide screens while the boxes did — the inconsistency CEO flagged.) */
+  --menu-w:calc(var(--box-w) - 2 * var(--gap-sm));
+  /* Status */
+  --success:#7fb069;--danger:#e07060;--danger-deep:var(--danger);   /* round-2: one red (was #c0392b) */
+  --warning:#f0c850;   /* timer low-time amber (distinct from danger red + brand gold) */
+  --gold-pure:var(--gold-bright);   /* round-2: achievements/celebration share --gold-bright (was #ffd700) */
+  /* Achievement rarity chips (common→legendary) */
+  /* --rarity-common/-uncommon dedupe onto brand equivalents (parchment-dark / success);
+     legendary already IS gold-pure. rare/epic have no brand twin — kept distinct. */
+  --rarity-common:var(--parchment-dark);--rarity-uncommon:var(--success);--rarity-rare:#7fa8e0;
+  --rarity-epic:#b98fe0;--rarity-legendary:var(--gold-pure);
+  --hc-yellow:#ffdd00;   /* high-contrast mode accessibility yellow (deliberately != brand gold) */
+  /* Connection-state banners + decorative glows (semantic, reused) */
+  --conn-lost:var(--danger-deep);   /* our connection down — shares the danger-deep red */
+  --conn-opp:var(--gold-deep);       /* opponent disconnected — shares the deep gold */
+  --gold-glow:color-mix(in srgb, var(--gold) 35%, transparent);
+  --hairline:color-mix(in srgb, var(--gold) 20%, transparent);   /* one faint gold edge for inner panels (stats / achievements / match history / leaderboard) */
+  /* POINTS LANGUAGE — the metallic "struck gold" fill for point values (a sheen
+     gradient with a highlight band). Negative = tarnished (desaturated) metal, still
+     clearly points. Zero = a flat cool wash (a pile that fought to nothing, not points).
+     All one token each → a theme swap reskins the whole points language. */
+  /* The shimmer is a LIGHTNESS change (OKLCH: vary l, keep chroma c + hue h), NOT a
+     pull toward white — so a colored metal's highlight stays its color (a bright RED,
+     not pink) instead of washing to a pastel. Positive = the full theme metal. */
+  --points:linear-gradient(178deg,oklch(from var(--gold) calc(l - 0.13) c h),var(--gold) 30%,oklch(from var(--gold) calc(l + 0.17) c h) 42%,var(--gold) 56%,oklch(from var(--gold) calc(l - 0.13) c h) 74%,oklch(from var(--gold) calc(l - 0.28) c h));
+  /* Negative = --gold with its CHROMA drained (OKLCH, c*0.14 — desaturated, no
+     hardcoded hue), then the same lightness shimmer. For gold → champagne; any theme
+     gives its own drained metal. Still shimmers (points), plainly "the lesser metal". */
+  --points-neg-base:oklch(from var(--gold) l calc(c * 0.2) h);
+  --points-neg:linear-gradient(178deg,oklch(from var(--points-neg-base) calc(l - 0.11) c h),var(--points-neg-base) 30%,oklch(from var(--points-neg-base) calc(l + 0.14) c h) 42%,var(--points-neg-base) 56%,oklch(from var(--points-neg-base) calc(l - 0.11) c h) 74%,oklch(from var(--points-neg-base) calc(l - 0.24) c h));
+  --points-sign:oklch(from var(--gold) calc(l + 0.12) c h);          /* solid minus fill (a child inline-block can't take the parent's clipped gradient) */
+  --points-neg-sign:oklch(from var(--points-neg-base) calc(l + 0.08) c h);
+  --score-zero:color-mix(in srgb,var(--parchment),var(--bg) 72%); /* zero = dark blank, nearly recedes into the bg (a wash, not points) */
+  --rating-up:#57b6c9;            /* rating delta: bright teal up */
+  --rating-down:#7d756a;          /* dim grey down (celebrate gains, mute losses) */
+  /* standard gold text-glow — em-relative so it scales with any text size */
+  --glow-gold:0 0 .28em var(--gold-bright),0 0 .62em color-mix(in srgb, var(--gold) 50%, transparent);
+  --alert-glow:color-mix(in srgb, var(--danger) 80%, transparent);
+  --shadow-card:0 var(--space-thin) var(--gap-xs) rgba(0,0,0,.3);
+  /* ANIMATION TOKENS — single source for all timing + easing.
+     --anim-ease: standard curve for one-shot transitions + appear/disappear.
+     --ease-inout: symmetric curve for infinite pulses + symmetric wobbles only. */
+  --anim-ease:cubic-bezier(.2,.8,.3,1);
+  --ease-inout:ease-in-out;
+  --scale-press:0.96;--scale-pulse-soft:1.05;--scale-pulse-strong:1.10;
+  --leading:1.618;   /* line-height = font × φ (one φ-tier up) — single knob for ALL leading */
+  /* --dur-snap: quick UI feedback (hover/press/small transitions, quick appear/disappear).
+     --dur-fade: standard fades (color/background/glow appear-disappear). --dur-fade-slow: ambient/celebratory. */
+  --dur-snap:0.2s;--dur-fade:0.4s;--dur-fade-slow:1s;
+  --weight-semibold:600;--weight-bold:700;--weight-black:900;
+  /* CHROME GEOMETRY — the single knobs for every shared box + button. Each aliases
+     a φ-tier so it still scales with the board; change one value here to reskin
+     every dialog/button/toggle in the app. The reset: ONE radius, ONE padding pair,
+     everywhere — deviations are added deliberately, never by drift. */
+  --scrim-pad:var(--gap-lg) var(--gap-sm);   /* overlay padding framing the box (horiz halved: chrome stacks with the box) */
+  --box-radius:var(--slot-pad);               /* dialog / panel corner */
+  --box-pad:var(--gap-lg) var(--gap-sm);      /* dialog inner padding */
+  --box-max:calc(var(--card-h) * 4.236);      /* golden cap (φ³) on box width — scales with the board, not a fixed px */
+  --box-w:min(90vw, var(--box-max));          /* THE box width — every dialog + the lobby column derive from this */
+  --btn-radius:var(--gap-xs);                 /* every button + toggle corner (one knob) */
+  --btn-pad:var(--slot-pad) var(--gap-xl);    /* button inner padding */
+}
+html,body{height:100%;overflow:hidden;font-family:'Crimson Pro',serif;font-weight:300;font-size:var(--text-body);line-height:var(--leading);background:var(--bg);color:var(--parchment)}
+
+/* ===== TYPE ROLES — the single source of truth for text. Size classes bundle
+   font-size with its PAIRED leading, so the two can never drift apart. Family:
+   body copy inherits Crimson (set on <body> above); add .t-display for Cinzel
+   controls/labels/titles, .t-brand for the Cinzel-Decorative wordmark. BOTH
+   renderText() (dynamic text) and static markup resolve through these — no
+   element should set a raw font-size/line-height/font-family outside this block. */
+.t-xxl{font-size:var(--text-title);line-height:var(--leading)}
+.t-xl{font-size:var(--text-heading);line-height:var(--leading)}
+/* Body floor — ONE definition for every body-size alias: lg/md/sm (emitted by
+   renderText) + t5/t4-body (static markup). All resolve to --text-body BY DESIGN —
+   the per-tier sizes were collapsed onto one floor so small labels can't outgrow body
+   text at small card heights (the "# left looked huge" bug, see layout.js). Family-less,
+   so every one inherits body Crimson. */
+.t-lg,.t-md,.t-sm,.t5,.t4-body{font-size:var(--text-body);line-height:var(--leading)}
+/* Emphasis: a half-φ bump ABOVE the body floor for running totals — out-sizes the
+   per-pile scores without a raw multiplier. Defined after the tier classes so it wins
+   when renderText also stamps a body tier class (e.g. .t-lg) on the same element. */
+.t-emphasis{font-size:var(--text-emphasis);line-height:var(--leading)}
+.t-display{font-family:'Cinzel',serif}
+.t-brand{font-family:'Cinzel Decorative',serif}
+.t-upper{text-transform:uppercase}
+/* Text-reset base: kill browser-default weight/slant on semantic tags, and force
+   form controls to INHERIT the page font (browsers otherwise give buttons/inputs a
+   system font). Keeps the boring baseline truly uniform; emphasis added deliberately. */
+h1,h2,h3,h4,h5,h6,b,strong,i,em{font-weight:inherit;font-style:normal}
+button,input,select,textarea{font-family:inherit;font-weight:inherit;font-style:inherit;color:inherit}
+/* Numbers render in Cinzel (the display serif), distinct from Crimson prose —
+   the standalone number displays + the value columns of result rows (the middle
+   label/dot column of a row stays Crimson). */
+#turn-timer-display,.pile-score,.total-score,.stat-value,.ach-progress-num,.lb-rank,.lb-record,.lb-rating,.stats-record-row .rec-bar,.r-line:not(.r-names)>span:first-child,.r-line:not(.r-names)>span:last-child{font-family:'Cinzel',serif}
+body{display:flex;flex-direction:column;align-items:center;justify-content:center}
+
+.screen{display:none;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;padding:var(--gap-lg);position:absolute;top:0;left:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.screen.active{display:flex}
+
+/* UNIFIED OVERLAY — single dark scrim for ALL modals/menus. The three legacy class
+   names (.overlay / .game-menu-overlay / .centered-modal, some created dynamically)
+   share ONE declaration so the surface has a single source. */
+.overlay,.game-menu-overlay,.centered-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:5200;display:none;align-items:center;justify-content:center;padding:var(--scrim-pad)}
+.overlay.active,.game-menu-overlay.active,.centered-modal.active,.centered-modal[style*="flex"]{display:flex}
+
+/* UNIFIED BOX — the ONE card-like container for every dialog, menu, and the results
+   card. .panel / .score-board / .centered-modal .modal-content (some built dynamically)
+   share one surface: same gradient, border, radius (--box-radius), padding (--box-pad). */
+.panel,.score-board,.centered-modal .modal-content{background:linear-gradient(135deg,var(--surface),var(--surface-deep));border:var(--border-w) solid var(--gold);border-radius:var(--box-radius);padding:var(--box-pad);width:var(--box-w)}
+/* Menu-style boxes stack + centre their children; the results card keeps its own
+   JS-built block layout (not flex) so the score table isn't reflowed. */
+.panel,.centered-modal .modal-content{display:flex;flex-direction:column;align-items:center;gap:var(--space-micro)}
+.panel{max-height:80vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.panel h2{font-size:var(--text-body);line-height:var(--leading);margin-bottom:var(--gap-sm)}
+.panel p{font-size:var(--text-body);line-height:var(--leading);text-align:center}
+
+/* BUTTON GROUP — flex column, consistent gap, and buttons stretch to one shared
+   width by default (so stacked actions like Rematch/Review/Leave always align).
+   A more specific rule (e.g. the lobby's --menu-w) still wins where intended. */
+.btn-group{display:flex;flex-direction:column;align-items:center;gap:var(--gap-sm);width:100%}
+.btn-group>.btn{width:100%;min-width:0}
+
+/* SCREEN TITLES — unified across all screens */
+.screen-title{font-size:var(--text-title);line-height:var(--leading);text-shadow:0 var(--space-thin) var(--gap-xs) rgba(0,0,0,.6);margin-bottom:var(--gap-micro);text-align:center}
+.screen-title.brand{font-family:'Cinzel Decorative',serif}
+.screen-title.sm{font-size:var(--text-heading);line-height:var(--leading)}
+.screen-subtitle{font-size:var(--text-body);line-height:var(--leading);margin-bottom:var(--gap-lg);text-align:center}
+.screen-subtitle.tight{margin-bottom:var(--gap-sm)}
+@keyframes flash{0%,100%{opacity:1}50%{opacity:0.3}}
+/* UNIFIED BUTTON — ONE geometry for every button, toggle, and chip: same padding
+   (--btn-pad), corner (--btn-radius), gold border, raised surface, press-scale.
+   Deviations are earned, never drift: .primary=gold fill, .danger=red border,
+   .secondary=dim border, .active=selected tint. Size stays contextual (min-width/width). */
+.btn,.variant-btn,.config-chip,.centered-modal .modal-btn{font-size:var(--text-body);line-height:var(--leading);padding:var(--btn-pad);border:var(--border-w) solid var(--gold);border-radius:var(--btn-radius);background:linear-gradient(160deg,var(--surface-raised),var(--surface-raised-deep));cursor:pointer;text-align:center;transition:all var(--dur-snap) var(--anim-ease);box-shadow:0 var(--space-thin) var(--gap-xs) rgba(0,0,0,.3),inset 0 var(--border-w) 0 rgba(255,255,255,.04)}
+.btn:active,.variant-btn:active,.config-chip:active,.centered-modal .modal-btn:active{transform:scale(var(--scale-press));background:linear-gradient(160deg,var(--surface-pressed),var(--surface))}
+.btn{min-width:calc(var(--card-h) * 2.618)}
+.btn.secondary{border-color:color-mix(in srgb, var(--gold) 30%, transparent);min-width:auto}
+.btn.danger{border-color:var(--danger-deep)}
+.btn.danger:active{background:color-mix(in srgb,var(--danger) 15%,transparent)}
+.btn.full-width{width:100%}
+/* Legacy margin spacing — use .btn-group with gap instead */
+.btn+.btn{margin-top:var(--gap-sm)}
+.btn-group .btn+.btn{margin-top:0}
+.input-group{margin-bottom:var(--slot-pad);text-align:center}
+.input-group label{display:block;margin-bottom:var(--gap-micro);font-size:var(--text-body);line-height:var(--leading)}
+.input-group input{font-size:var(--text-heading);line-height:var(--leading);padding:var(--gap-xs) var(--slot-pad);border:var(--border-w) solid var(--gold);background:rgba(255,255,255,.08);border-radius:var(--gap-xs);text-align:center;width:calc(var(--card-h) * 2.618)}
+.input-group input::placeholder{font-size:var(--text-body);line-height:var(--leading)}
+.input-group input:focus{outline:none;border-color:var(--gold-bright);box-shadow:0 0 var(--gap-sm) color-mix(in srgb, var(--gold) 30%, transparent)}
+.room-code-display{font-size:var(--text-title);line-height:var(--leading);text-shadow:0 0 var(--gap-lg) color-mix(in srgb, var(--gold) 40%, transparent);margin:var(--slot-pad) 0}
+.waiting-text{animation:pulse calc(var(--dur-fade-slow) * 2) var(--ease-inout) infinite}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+.back-btn{position:absolute;top:var(--gap-lg);left:var(--gap-lg);background:none;border:none;font-size:var(--text-heading);line-height:var(--leading);cursor:pointer;padding:var(--gap-xs);z-index:100}
+/* On the scrolling You page, pin the back-arrow to the viewport so it's reachable anywhere. */
+#you-screen .back-btn{position:fixed}
+.corner-btn{position:absolute;top:max(var(--slot-pad),env(safe-area-inset-top));background:none;border:none;font-size:var(--text-heading);cursor:pointer;padding:var(--gap-xs);opacity:.7;transition:opacity var(--dur-snap) var(--anim-ease);z-index:1}
+.corner-btn:active{opacity:1}
+.corner-left{left:max(var(--slot-pad),env(safe-area-inset-left))}
+.corner-right{right:max(var(--slot-pad),env(safe-area-inset-right))}
+.name-input{font-size:var(--text-body);line-height:var(--leading);padding:var(--gap-xs) var(--slot-pad);border:var(--border-w) solid color-mix(in srgb, var(--gold) 40%, transparent);background:rgba(255,255,255,.06);border-radius:var(--gap-xs);text-align:center;width:var(--menu-w);margin-bottom:var(--slot-pad)}
+.name-input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 var(--gap-sm) color-mix(in srgb, var(--gold) 20%, transparent)}
+.error-msg{font-size:var(--text-body);line-height:var(--leading);margin-top:var(--gap-xs);min-height:var(--gap-lg)}
+/* Toggle = unified button + a "selected" state (the earned exception): brighter
+   border + a gold wash over the raised surface. */
+.variant-btn.active{border-color:var(--gold-bright);background:linear-gradient(160deg,color-mix(in srgb, var(--gold) 24%, var(--surface-raised)),var(--surface-raised))}
+.variant-btn.unavailable{opacity:.45;cursor:not-allowed}
+
+/* GAME BOARD */
+/* Reserve the bar band at the BOTTOM only; the board fills + is symmetric within
+   the space above it. Nav chrome (back-arrow/eye/gear) overlays the top corners. */
+#game-screen{padding:var(--board-margin) var(--board-margin) calc(var(--board-margin) + var(--bar-band-h));flex-direction:column;justify-content:space-between;background:var(--bg);position:relative;overflow:hidden;transition:box-shadow var(--dur-fade) var(--anim-ease)}
+/* Floating gear menu — pins to screen edges */
+/* The board's gear + back button are the SAME tokenised .corner-btn as every
+   other screen (identical colour/size/position) — just lifted above the board
+   content. No separate .floating-menu-btn look. */
+#game-screen .corner-btn{z-index:6000}
+/* Replay has its own top-left back-arrow → hide the live board's back button. */
+#game-screen.replay-mode #board-back-btn{display:none}
+/* Bottom bar — ONE element for both modes. A real bar surface (raised band, gold
+   top hairline, soft lift shadow). The mode (.replay-mode on #game-screen) shows
+   exactly one control group inside; the chrome never changes. */
+#bottom-bar{position:absolute;left:0;right:0;bottom:0;height:var(--bar-band-h);z-index:5000;display:flex;align-items:center;padding:0 var(--board-margin);background:linear-gradient(0deg,var(--surface-deep),var(--surface));border-top:var(--border-w) solid color-mix(in srgb, var(--gold) 28%, transparent);box-shadow:0 calc(-1 * var(--space-thin)) var(--gap-sm) rgba(0,0,0,.38);transition:background var(--dur-fade) var(--anim-ease)}
+/* Your-turn cue = the bar's own edge glow (inset). NO line-glow (border keeps its
+   quiet base tint) and NO board glow — the bar carries it. The thin base border
+   stays as the off-turn shelf edge. */
+#bottom-bar.my-turn{background:linear-gradient(0deg,color-mix(in srgb, var(--gold) 14%, transparent),var(--surface-raised-deep));box-shadow:inset 0 0 calc(var(--card-h)*0.28) color-mix(in srgb, var(--gold) 50%, transparent),0 calc(-1 * var(--space-thin)) var(--gap-sm) rgba(0,0,0,.38)}
+/* Live group: undo (left) · turn indicator (centre) · timer (right). */
+/* Undo + timer are pinned to the edges (absolute) so the turn indicator centres
+   on the WHOLE bar, not in the space left after the undo button. */
+#live-controls{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:var(--gap-xxl)}
+#live-controls #floating-undo-btn{position:absolute;right:0;top:0;bottom:0;margin:auto 0}
+#live-controls #turn-timer-display{position:absolute;left:0;top:0;bottom:0;margin:auto 0;height:fit-content}
+#turn-indicator{max-width:64%;text-align:center;font-size:var(--text-body);line-height:var(--leading);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color var(--dur-fade) var(--anim-ease)}
+/* Replay group: ‹ · scrubber (takes the width) · › · n/N. */
+#replay-controls{flex:1;display:flex;align-items:center;justify-content:center;gap:var(--gap-xs)}
+/* Mode switch — show exactly one group. */
+#game-screen:not(.replay-mode) #replay-controls{display:none}
+#game-screen.replay-mode #live-controls{display:none}
+/* Shared borderless glyph button — undo AND the replay ‹ › steps. */
+.bar-icon-btn{pointer-events:auto;font-size:var(--text-body);width:var(--gap-xxl);height:var(--gap-xxl);border:none;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;line-height:1;flex:0 0 auto;transition:transform var(--dur-snap) var(--anim-ease),opacity var(--dur-snap) var(--anim-ease)}
+.bar-icon-btn:active{transform:scale(var(--scale-press))}
+.bar-icon-btn:disabled{opacity:.3;pointer-events:none}
+.bar-icon-btn svg{width:1em;height:1em}
+/* Undo glyph runs a bit over a φ level bigger than the ‹ › steps. */
+#floating-undo-btn{font-size:calc(var(--text-heading) * 1.1)}
+/* Turn timer — gold on your turn, greyed on the opponent's, red as it runs low. */
+#turn-timer-display{pointer-events:none;font-size:var(--text-body);line-height:var(--leading);transition:color var(--dur-fade) var(--anim-ease),transform var(--dur-fade) var(--anim-ease)}
+/* Tiny wobble when a too-small-to-spread pile is tapped (tactile feedback). */
+@keyframes cardJiggle{0%{transform:rotate(0)}20%{transform:rotate(-4deg)}40%{transform:rotate(3deg)}60%{transform:rotate(-2deg)}80%{transform:rotate(1deg)}100%{transform:rotate(0)}}
+/* Card flip — scaleX squish on the inner card face; thinnest at midpoint where the
+   face swaps (see updateCardVisual). Reveal on draws + the replay deck-flip. */
+@keyframes cardFlip{0%,100%{transform:scaleX(1)}50%{transform:scaleX(0)}}
+/* jiggle uses --ease-inout (symmetric wobble); duration consolidated 0.34s→--dur-fade */
+.card.jiggle{animation:cardJiggle var(--dur-fade) var(--ease-inout)}
+/* Hand peek: clipped opponent hand at top — bleeds past board margin */
+/* Opponent hand container — now a FULL hand (no peek clip). */
+.hand-peek{position:relative;width:100%}
+/* Player/opponent names each get their OWN flow row (band) outside the hand, so
+   the name's line-height provides the spacing to the cards automatically — no
+   absolute overlay, no hand-coded offset. The band centres the name. */
+.hand-name-row{display:flex;align-items:center;justify-content:center;width:100%;pointer-events:none}
+.hand-name{max-width:90%;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* (Whole-board edge glow retired — the your-turn cue is the bar's own edge glow.) */
+#idle-overlay{display:none}
+@keyframes idleBorderPulse{0%,100%{box-shadow:inset 0 0 calc(var(--card-h)*0.5) color-mix(in srgb, var(--gold) 70%, transparent)}50%{box-shadow:inset 0 0 calc(var(--card-h)*0.9) color-mix(in srgb, var(--gold) 100%, transparent)}}
+#idle-overlay.visible{display:flex;animation:idleBorderPulse calc(var(--dur-fade-slow) * 2) var(--ease-inout) infinite}
+@keyframes idlePulse{0%,100%{transform:scale(1)}50%{transform:scale(var(--scale-pulse-soft))}}
+
+/* BOARD LAYOUT */
+.board-area{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-start;align-items:center;overflow:visible;width:100%;padding:0;position:relative;z-index:2000;gap:0}
+.card-row{display:grid;grid-template-columns:repeat(var(--num-colors),var(--col-w));justify-content:center;padding:0 var(--board-margin);overflow:visible;width:100%;flex-shrink:0}
+.card-col{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.card.pile-space{width:var(--col-w);height:calc(var(--card-h) + var(--slot-pad))}
+/* Persistent per-pile score layer — scores live here (not in the rebuilt play-row
+   innerHTML) so a CSS top-transition can GLIDE them into place when a pile expands,
+   like the cards. Positioned by positionAllCards. */
+#pile-score-layer{position:absolute;inset:0;pointer-events:none;z-index:3050}
+.pile-score{position:absolute;transform:translateX(-50%);text-align:center;white-space:nowrap;pointer-events:none}
+.ps-riv{position:absolute;left:50%;transform:translateX(-50%);font-size:var(--text-body);line-height:var(--leading);white-space:nowrap}
+/* Draw pile slot */
+#draw-pile-slot{display:flex;flex-direction:column;align-items:center;margin-top:var(--slot-pad)}
+/* Info rows */
+.info-row{display:flex;align-items:center;width:100%;padding:0 var(--board-margin);overflow:hidden;flex-shrink:0}
+/* name-tag (left) and total-score (right) take equal flex shares so the
+   centred phase-prompt between them lands on the SCREEN centre, not just the
+   centre of the leftover space. */
+.name-tag{max-width:90%;font-size:var(--text-body);line-height:var(--leading);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color var(--dur-fade) var(--anim-ease),text-shadow var(--dur-fade) var(--anim-ease)}
+/* Active player (whose turn it is) — driven by renderNameTags from game state. */
+.name-tag.active{color:var(--gold-bright);text-shadow:0 0 .4em color-mix(in srgb, var(--gold) 45%, transparent)}
+.total-score{flex:1 1 0;font-size:var(--text-body);line-height:var(--leading);text-align:right}
+
+/* CARD POOL — persistent card elements positioned via four-corner transforms */
+#card-pool{position:absolute;inset:0;pointer-events:none;z-index:2000;overflow:visible}
+/* An expanded/collapsing pile is a temporary focus overlay: lift the WHOLE pool above
+   the pile-score layer (3050) + board chrome so the fan sits on top of scores/names/
+   totals. A card's own z can't beat a sibling layer's stacking context — the layer must
+   move. Stays below the selected card (5000) and modals (5200). */
+#card-pool.pile-focus{z-index:4000}
+.card-wrapper{position:absolute;left:0;top:0;pointer-events:auto;transform-origin:0 0;will-change:transform}
+
+/* CARDS */
+.card{width:var(--card-w);height:var(--card-h);font-family:'Cinzel',serif;border-radius:calc(var(--card-h) * var(--phi-6));display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:box-shadow var(--dur-snap) var(--anim-ease);position:relative;border:var(--border-w) solid rgba(255,255,255,.15);flex-shrink:0;box-shadow:0 var(--space-thin) var(--gap-micro) rgba(0,0,0,.4);overflow:hidden}
+.card:active{opacity:.9}
+/* Selection highlight — an OUTER gold ring (a zero-blur box-shadow spread sits
+   OUTSIDE the card's rounded rect, following its radius) plus the lifted gold
+   glow. Outer, not an inner border recolor, so it survives being rendered behind
+   other cards (the hand-hint twins). Single source shared by a selected card and
+   the hand glow twins. */
+/* Highlight = an outer gold ring + a moderate, symmetric halo. */
+:root{--sel-glow:0 0 calc(var(--card-h)*.2) color-mix(in srgb, var(--gold) 50%, transparent)}
+.card.selected,.hand-glow-twin,.card.draw-lit{box-shadow:0 0 0 var(--border-w) var(--gold-bright),var(--sel-glow)}
+/* The hand shows 8 overlapping glow twins; without this their halos ADD where
+   they overlap (bright seams) and not elsewhere. `lighten` blends each twin by
+   MAX against what's behind, so the halo reads as one smooth glow around the fan
+   rather than per-card lobes. (Only the hand overlaps — a selected card or a
+   drawable pile top is a lone glow, so they don't need it.) */
+.hand-glow-twin{mix-blend-mode:lighten}
+.card-value{font-size:calc(var(--card-h) * var(--phi-3) * 1.272);text-shadow:0 var(--border-w) var(--space-micro) rgba(0,0,0,.8),0 0 var(--gap-micro) rgba(0,0,0,.4);line-height:1;z-index:1}
+/* Wager mark — sizes to the surrounding text (1em), inherits the ink colour,
+   gets the same drop-shadow the numeral text-shadow gives, so it reads on the
+   card face and in the breakdown identically on every OS. */
+.wager-icon{width:1em;height:1em;display:inline-block;vertical-align:-0.14em;color:#fff;filter:drop-shadow(0 var(--border-w) var(--space-micro) rgba(0,0,0,.7))}
+.card-corner{font-size:calc(var(--card-h) * var(--phi-4));position:absolute;top:calc(var(--card-h) * var(--phi-9));left:calc(var(--card-w) * var(--phi-8));z-index:1;line-height:1;background:rgba(0,0,0,.35);border-radius:calc(var(--card-h) * var(--phi-7));padding:calc(var(--card-h) * var(--phi-9)) calc(var(--card-w) * var(--phi-6));text-shadow:0 var(--border-w) var(--space-thin) rgba(0,0,0,.9)}
+.wager .card-corner{top:calc(var(--card-h)*.026)}
+/* Red — volcanic / lava landscape */
+.card.color-red{background:#9b2020;color:#ffe8e8;border-color:rgba(200,60,60,.4)}
+    .card.color-red::before{content:'';position:absolute;inset:0;border-radius:inherit;z-index:0;background:linear-gradient(180deg,#c03030 0%,#a02525 30%,#801a1a 60%,#601010 100%)}
+    .card.color-red::after{content:'';position:absolute;inset:0;border-radius:inherit;z-index:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 80'%3E%3Crect fill='%23a02525' width='56' height='80'/%3E%3Cpath d='M20 80 L28 30 L36 80Z' fill='%23701818' opacity='.8'/%3E%3Cpath d='M0 80 L10 45 L20 80Z' fill='%23801c1c' opacity='.6'/%3E%3Cpath d='M36 80 L46 50 L56 80Z' fill='%23751a1a' opacity='.7'/%3E%3Ccircle cx='28' cy='22' r='5' fill='%23f06030' opacity='.5'/%3E%3Ccircle cx='28' cy='22' r='3' fill='%23ff8844' opacity='.4'/%3E%3Cpath d='M24 80 Q28 60 32 80' fill='%23e04020' opacity='.3'/%3E%3C/svg%3E") center/cover no-repeat}
+/* Green — jungle / rainforest */
+.card.color-green{background:#1a6b35;color:#e0ffe8;border-color:rgba(50,160,80,.4)}
+    .card.color-green::before{content:'';position:absolute;inset:0;border-radius:inherit;z-index:0;background:linear-gradient(180deg,#2a8040 0%,#1e6830 30%,#145020 60%,#0a3818 100%)}
+    .card.color-green::after{content:'';position:absolute;inset:0;border-radius:inherit;z-index:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 80'%3E%3Crect fill='%231e6830' width='56' height='80'/%3E%3Cpath d='M10 80 L10 35 Q10 25 16 30 Q8 20 14 15 Q10 8 15 5 L16 5 Q20 10 18 18 Q24 12 20 25 Q22 20 20 35 L20 80Z' fill='%23145820' opacity='.6'/%3E%3Cpath d='M38 80 L38 40 Q36 30 42 35 Q35 22 40 18 Q38 10 42 8 L43 8 Q46 14 44 22 Q48 16 46 30 Q48 25 46 40 L46 80Z' fill='%23125018' opacity='.7'/%3E%3Cpath d='M0 65 Q8 55 16 60 Q24 50 32 58 Q40 52 48 56 Q52 54 56 58 L56 80 L0 80Z' fill='%230a3a14' opacity='.5'/%3E%3C/svg%3E") center/cover no-repeat}
+/* Blue — ocean / ice landscape */
+.card.color-blue{background:#1a4a80;color:#e0eeff;border-color:rgba(60,120,200,.4)}
+    .card.color-blue::before{content:'';position:absolute;inset:0;border-radius:inherit;z-index:0;background:linear-gradient(180deg,#2860a0 0%,#1e5090 30%,#163870 60%,#0e2850 100%)}
+    .card.color-blue::after{content:'';position:absolute;inset:0;border-radius:inherit;z-index:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 80'%3E%3Crect fill='%231e5090' width='56' height='80'/%3E%3Cpath d='M0 30 Q14 24 28 30 Q42 36 56 30 L56 45 Q42 51 28 45 Q14 39 0 45Z' fill='%23285898' opacity='.4'/%3E%3Cpath d='M0 48 Q14 42 28 48 Q42 54 56 48 L56 63 Q42 69 28 63 Q14 57 0 63Z' fill='%23204880' opacity='.3'/%3E%3Cpath d='M15 12 L20 0 L25 12 L22 12 L22 20 L18 20 L18 12Z' fill='%23a0d0f0' opacity='.3'/%3E%3Cpath d='M33 18 L37 8 L41 18 L39 18 L39 25 L35 25 L35 18Z' fill='%2390c0e0' opacity='.25'/%3E%3Cpath d='M0 68 Q10 62 20 66 Q30 60 40 65 Q50 60 56 64 L56 80 L0 80Z' fill='%23163060' opacity='.5'/%3E%3C/svg%3E") center/cover no-repeat}
+/* White — snowy mountain */
+.card.color-white{background:#686878;color:#f0f0ff;border-color:rgba(160,160,180,.4)}
+    .card.color-white::before{content:'';position:absolute;inset:0;border-radius:inherit;z-index:0;background:linear-gradient(180deg,#808898 0%,#6a7080 30%,#585e6e 60%,#484e5e 100%)}
+    .card.color-white::after{content:'';position:absolute;inset:0;border-radius:inherit;z-index:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 80'%3E%3Crect fill='%236a7080' width='56' height='80'/%3E%3Cpath d='M0 55 L22 15 L40 45 L56 25 L56 80 L0 80Z' fill='%23585e6e' opacity='.6'/%3E%3Cpath d='M0 55 L22 15 L28 28 L14 50Z' fill='%23c8cce0' opacity='.25'/%3E%3Cpath d='M40 45 L56 25 L56 38 L48 45Z' fill='%23b8bcd0' opacity='.2'/%3E%3Cpath d='M0 70 Q14 62 28 68 Q42 60 56 66 L56 80 L0 80Z' fill='%23404858' opacity='.5'/%3E%3Ccircle cx='8' cy='10' r='1.5' fill='%23d0d4e0' opacity='.4'/%3E%3Ccircle cx='20' cy='6' r='1' fill='%23d0d4e0' opacity='.3'/%3E%3Ccircle cx='45' cy='12' r='1.5' fill='%23d0d4e0' opacity='.35'/%3E%3C/svg%3E") center/cover no-repeat}
+/* Yellow — desert / sand dunes + dark text for contrast */
+.card.color-yellow{background:#c49a20;color:#fff8e0;border-color:rgba(200,160,30,.4)}
+    .card.color-yellow::before{content:'';position:absolute;inset:0;border-radius:inherit;z-index:0;background:linear-gradient(180deg,#e8c44a 0%,#d4a830 30%,#b8862a 60%,#a06e22 100%)}
+    .card.color-yellow::after{content:'';position:absolute;inset:0;border-radius:inherit;z-index:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 80'%3E%3Cdefs%3E%3ClinearGradient id='sky' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%23f0d060'/%3E%3Cstop offset='40%25' stop-color='%23e8c040'/%3E%3Cstop offset='100%25' stop-color='%23d4a828'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23sky)' width='56' height='80'/%3E%3Ccircle cx='38' cy='14' r='8' fill='%23f5e088' opacity='.7'/%3E%3Ccircle cx='42' cy='16' r='4' fill='%23f0d870' opacity='.5'/%3E%3Cpath d='M0 52 Q8 40 18 46 Q26 38 34 44 Q44 36 56 42 L56 80 L0 80Z' fill='%23b07818' opacity='.6'/%3E%3Cpath d='M0 58 Q12 48 22 54 Q30 46 40 52 Q50 44 56 50 L56 80 L0 80Z' fill='%23a06a14' opacity='.7'/%3E%3Cpath d='M0 65 Q10 56 20 62 Q32 54 42 60 Q50 55 56 58 L56 80 L0 80Z' fill='%238a5a10' opacity='.8'/%3E%3Cpath d='M0 72 Q14 64 28 68 Q42 62 56 66 L56 80 L0 80Z' fill='%23704a0c' opacity='.7'/%3E%3C/svg%3E") center/cover no-repeat}
+.card.color-purple{background:#5a3080;color:#f0e0ff;border-color:rgba(140,100,200,.4)}
+    .card.color-purple::before{content:'';position:absolute;inset:0;border-radius:inherit;z-index:0;background:linear-gradient(180deg,#7848a8 0%,#603890 30%,#4a2878 60%,#381e60 100%)}
+    .card.color-purple::after{content:'';position:absolute;inset:0;border-radius:inherit;z-index:0;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 80'%3E%3Cdefs%3E%3ClinearGradient id='sky' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%238060b0'/%3E%3Cstop offset='40%25' stop-color='%236848a0'/%3E%3Cstop offset='100%25' stop-color='%23503888'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect fill='url(%23sky)' width='56' height='80'/%3E%3Ccircle cx='28' cy='20' r='10' fill='%23a080d0' opacity='.4'/%3E%3Ccircle cx='28' cy='20' r='5' fill='%23b898e0' opacity='.3'/%3E%3Cpath d='M0 50 Q14 42 28 48 Q42 42 56 50 L56 80 L0 80Z' fill='%23402868' opacity='.6'/%3E%3Cpath d='M0 60 Q14 52 28 58 Q42 52 56 60 L56 80 L0 80Z' fill='%23382060' opacity='.7'/%3E%3Cpath d='M0 70 Q14 64 28 68 Q42 64 56 70 L56 80 L0 80Z' fill='%23301858' opacity='.8'/%3E%3C/svg%3E") center/cover no-repeat}
+.cb-sym{position:absolute;bottom:calc(var(--card-h) * var(--phi-9));right:calc(var(--card-w) * var(--phi-7));font-size:calc(var(--card-h) * var(--phi-4));opacity:.8;z-index:1;text-shadow:0 var(--border-w) var(--space-thin) rgba(0,0,0,.8);line-height:1}
+.card.card-back{background:var(--card-back);border-color:color-mix(in srgb, var(--gold) 40%, transparent)}
+.card.card-back::before{content:'✦';position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;font-size:calc(var(--card-h)*.36);color:color-mix(in srgb, var(--gold) 30%, transparent)}
+.card.card-back::after{content:'';position:absolute;inset:calc(var(--card-h)*.05);border:var(--border-w) solid color-mix(in srgb, var(--gold) 20%, transparent);border-radius:calc(var(--card-h)*.04);z-index:0}
+/* PILE SPACES & TARGETS */
+/* Empty slot: a shallow felt WELL — a place a card drops into. Neutral (no lane colour):
+   a groove rim + top-lit bevel (dark top wall, lit bottom wall) sinks it below the board;
+   the fibre texture (::before) reads as cloth; the debossed ✦ (::after) echoes the
+   card-back mark. As a lane fills, its played stack covers the well. */
+.card.pile-space{background:var(--felt-base);border:none;cursor:default;overflow:hidden;box-shadow:inset 0 0 0 var(--border-w) rgba(0,0,0,.55), inset 0 calc(var(--border-w) * 2.5) var(--gap-xs) calc(-1 * var(--border-w)) rgba(0,0,0,.75), inset 0 calc(-1 * var(--border-w) * 2) var(--gap-xs) calc(-1 * var(--border-w)) rgba(255,255,255,.10)}
+.card.pile-space::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.15;mix-blend-mode:overlay;background-image:var(--felt-texture)}
+.card.pile-space::after{content:'✦';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:calc(var(--card-h) * .24);color:rgba(0,0,0,.32);text-shadow:0 var(--border-w) 0 rgba(255,255,255,.05);pointer-events:none;z-index:1}
+.card.target{border:var(--border-w-thick) solid var(--gold-bright)!important;cursor:pointer;animation:target-pulse calc(var(--dur-fade) * 2) var(--ease-inout) infinite alternate;box-shadow:0 0 calc(var(--card-h) * var(--phi-4)) color-mix(in srgb, var(--gold) 25%, transparent)}
+.card-col>.card.target{width:var(--col-w);height:calc(var(--card-h) + var(--slot-pad));margin:0}
+.target-label{position:absolute;bottom:calc(-1 * var(--slot-pad));left:50%;transform:translateX(-50%);font-size:var(--text-card);line-height:var(--leading);white-space:nowrap;text-shadow:0 0 calc(var(--card-h) * var(--phi-5)) color-mix(in srgb, var(--gold) 50%, transparent);z-index:1}
+@keyframes target-pulse{from{box-shadow:0 0 var(--border-w) color-mix(in srgb, var(--gold) 20%, transparent)}to{box-shadow:0 0 var(--gap-sm) color-mix(in srgb, var(--gold) 40%, transparent)}}
+.card.undoable{border:var(--border-w-thick) dashed var(--gold)!important;cursor:pointer;animation:undo-pulse calc(var(--dur-fade) * 2) var(--ease-inout) infinite alternate}
+@keyframes undo-pulse{from{opacity:.7}to{opacity:1}}
+
+/* Hand "pick a card" hint. One glow twin per hand card, rendered BEHIND every
+   hand face (in #card-pool at a sub-hand z), so the highlight shows only on the
+   fan's outer silhouette — never on the internal overlap seams. Same border +
+   highlight (outer ring + glow) from the shared rule above. */
+.hand-glow-twin{position:absolute;left:0;top:0;transform-origin:0 0;width:var(--card-w);height:var(--card-h);border-radius:calc(var(--card-h) * var(--phi-6));pointer-events:none;opacity:0;transition:opacity var(--dur-fade) var(--anim-ease);will-change:transform,opacity}
+/* While a hand card is lit, drop its own dark drop-shadow: cast onto the gold
+   glow twin behind, those shadows pool into dark notches at the fan's converged
+   bottom seams. The glow already separates the cards from the board. */
+/* A lit hand face casts no drop-shadow itself — the clipped shadow twins below
+   own the overlap depth (so it can't notch the glow). */
+.card.hand-lit{box-shadow:none}
+/* Clipped hand-shadow twins: one per lit card, each a pool sibling at its own
+   card's z (JS sets z-index + a clip-path to the union of the other cards), so the
+   shadow lands on the cards behind — never on a card in front, or on the glow. */
+.hand-shadow-twin{position:absolute;left:0;top:0;transform-origin:0 0;width:var(--card-w);height:var(--card-h);pointer-events:none;box-shadow:0 var(--space-thin) var(--gap-micro) rgba(0,0,0,.4)}
+
+/* HAND */
+/* No safe-area padding here — the board's bottom band already reserves it. This
+   also keeps the user hand-area symmetric with the (padding-less) opponent one. */
+.hand-area{padding:0;width:100%;display:flex;align-items:center;position:relative}
+.hand-cards{position:relative;width:100%;overflow:visible}
+.hand-cards .card{flex-shrink:0}
+.hand-cards>div{position:absolute;z-index:2000}
+.hand-cards>div:hover{z-index:2002}
+.hand-cards>div:has(.selected){z-index:3000}
+
+/* PHASE PROMPT */
+.phase-prompt{text-align:center;padding:0 var(--slot-pad);font-size:var(--text-body);line-height:var(--leading);min-height:calc(var(--text-body)*var(--leading))}
+/* Inside an info-row: fill remaining space, never wrap; ellipsis is the last-resort clip */
+.info-row .phase-prompt{position:relative;flex:0 1 auto;min-width:0;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:var(--gap-xl)}
+
+.spread-view{display:none}
+
+/* GAME OVER — shown as an OVERLAY on the board (board dimmed behind), not a
+   separate screen. Tap the backdrop (outside the score card) to dismiss to the
+   board underneath. */
+.gameover-scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;padding-top:max(var(--gap-lg),env(safe-area-inset-top))}
+#gameover-screen.active{background:rgba(18,12,5,.82);z-index:8000;cursor:pointer}
+#gameover-screen .score-board{cursor:auto}
+/* Replay: the on-board total is a tappable pill that opens the full results. */
+.score-pill{display:inline-flex;align-items:center;padding:var(--space-thin) var(--gap-xs);border:var(--border-w) solid color-mix(in srgb, var(--gold) 60%, transparent);border-radius:var(--gap-xs);background:color-mix(in srgb, var(--gold) 10%, transparent);cursor:pointer;transition:background var(--dur-snap) var(--anim-ease)}
+.score-pill:active{background:color-mix(in srgb, var(--gold) 25%, transparent)}
+/* Hint under the results card (replay): how to get back to the board. */
+.results-hint{font-size:var(--text-body);line-height:var(--leading);text-align:center;margin-top:var(--gap-sm)}
+
+/* SCORE SCREEN — width comes from the shared --box-w (no extra cap needed). */
+.score-board h2{text-align:center;margin-bottom:var(--gap-lg)}
+.color-dot{display:inline-block;width:calc(var(--card-h) * var(--phi-4));height:calc(var(--card-h) * var(--phi-4));border-radius:50%;vertical-align:middle;margin-right:var(--space-micro)}
+
+/* RULES MODAL — uses .overlay + .panel, just needs content-specific styles */
+.panel h3{font-size:var(--text-body);line-height:var(--leading);margin:var(--gap-sm) 0 var(--space-micro)}
+.panel li{font-size:var(--text-body);line-height:var(--leading);}
+.panel ul{padding-left:var(--gap-lg);margin-bottom:var(--gap-sm);width:100%;text-align:left}
+.panel .btn{width:100%}
+.panel .save-note{font-size:var(--text-body);line-height:var(--leading);text-align:center;margin-top:var(--gap-sm)}
+
+/* Dynamically-generated modals (multiplayer disconnect) — scrim + box share the
+   unified rules above; only the content-specific extras live here. */
+.centered-modal .modal-content{text-align:center}
+.centered-modal h3{font-size:var(--text-body);line-height:var(--leading);margin-bottom:var(--gap-sm)}
+.centered-modal .modal-buttons{display:flex;flex-direction:column;gap:var(--gap-sm);margin-top:var(--gap-sm);width:100%}
+.centered-modal .modal-btn{width:100%}
+.centered-modal .modal-btn.secondary{border-color:color-mix(in srgb, var(--gold) 30%, transparent)}
+/* Connection-state banners (created dynamically by multiplayer.js) */
+.conn-banner{position:fixed;top:0;left:0;right:0;z-index:9999;text-align:center;padding:var(--gap-sm);background:var(--conn-lost);font-size:var(--text-body);line-height:var(--leading)}
+.conn-banner.opp{z-index:9998;background:var(--conn-opp)}
+/* Match-history rows (created dynamically by match-history.js) */
+/* Fixed-height scroll box; max-height is set in JS to ~10 measured rows so it
+   tracks the runtime layout tokens. Padding-right leaves room for the bar. */
+.mh-scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:var(--gap-xs)}
+.mh-scroll::-webkit-scrollbar{width:var(--space-micro)}
+.mh-scroll::-webkit-scrollbar-thumb{background:color-mix(in srgb, var(--gold) 30%, transparent);border-radius:var(--gap-xs)}
+.mh-row{display:flex;align-items:center;gap:var(--gap-xs);padding:var(--gap-xs) var(--gap-sm);border:var(--border-w) solid var(--hairline);border-radius:var(--gap-xs);margin-bottom:var(--space-micro)}
+.mh-row.replayable{cursor:pointer}
+.mh-row .t4-body{font-size:var(--text-body);line-height:var(--leading)}
+.mh-badge{min-width:1.5em;text-align:center;font-size:var(--text-body);line-height:var(--leading);}
+
+/* TOAST — legacy element kept for achievement toasts */
+/* Scrollable: an achievement burst stacks every unlock at once */
+#toast-container{position:fixed;top:0;left:5%;width:90%;z-index:9000;pointer-events:none;max-height:70vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+/* Notification toast = the shared box surface (gradient + gold border + box radius),
+   so a notification reads as the same material as every dialog/button box. */
+.toast{background:linear-gradient(135deg,var(--surface),var(--surface-deep));padding:var(--gap-xs) var(--gap-lg);margin:var(--gap-xs) 0;border-radius:var(--box-radius);border:var(--border-w) solid var(--gold);transform:translateY(-100%);opacity:0;transition:transform var(--dur-snap) var(--anim-ease),opacity var(--dur-snap) var(--anim-ease);pointer-events:auto;cursor:pointer;font-size:var(--text-body);line-height:var(--leading);text-align:center;box-shadow:0 var(--gap-micro) var(--board-margin) rgba(0,0,0,.5)}
+.toast.toast-in{transform:translateY(0);opacity:1}
+.toast.toast-gold{border:var(--border-w) solid var(--gold-pure);box-shadow:0 var(--gap-xs) var(--gap-sm) color-mix(in srgb, var(--gold-pure) 30%, transparent)}
+
+/* SCORE TABLE — rows carry NO vertical padding/margin: line-height (φ, --leading) is
+   the SOLE vertical spacer, which also makes each single-line number self-centered in
+   its own box (half-leading splits evenly above/below). Don't reintroduce padding here. */
+.r-line{display:flex;align-items:baseline;font-size:var(--text-body);line-height:var(--leading)}
+/* Rating + Record rows — set off by a faint divider only; their spacing, like every
+   score row, comes from line-height (no extra padding/margin). */
+.results-meta{width:100%;border-top:var(--border-w) solid color-mix(in srgb, var(--gold) 12%, transparent)}
+.r-sep-color{border-top:var(--border-w) solid color-mix(in srgb, var(--gold) 18%, transparent);margin:0}
+.r-sep-breakdown{border-top:var(--border-w) solid color-mix(in srgb, var(--gold) 10%, transparent);margin:0}
+.sc-row>span:first-child{padding-left:var(--gap-sm)}
+.sc-row>span:last-child{padding-right:var(--gap-sm)}
+/* Minus sign hangs in an EM-relative gutter (scales with the digits at any size, so
+   per-pile and total signs look identical), right-aligned so it butts its digit at
+   natural spacing while the digits stay edge-aligned in their column. */
+.sc-sign{display:inline-block;width:0.6em;text-align:right;margin-left:-0.6em}
+.r-pos{color:var(--gold-bright)}   /* record/outcome ahead = gold (win counts, NOT points) */
+.r-neg{color:var(--danger)}        /* record/outcome behind = red */
+.r-muted{opacity:.5}
+/* POINT VALUES — metallic gold. Positive = bright struck gold; negative = tarnished
+   metal (still points); zero = flat cool wash. The minus lives in a child inline-block
+   (.sc-sign) which can't inherit the clipped gradient, so it takes a solid matching fill. */
+/* clip MUST come after the background shorthand (the shorthand resets background-clip). */
+.pts{background:var(--points);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.pts-neg{background:var(--points-neg);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+.pts .sc-sign{color:var(--points-sign)}
+.pts-neg .sc-sign{color:var(--points-neg-sign)}
+.pts-zero{color:var(--score-zero)}
+/* Rating-delta triangles — em-scaled so they always match the digits beside them. */
+.tri-up,.tri-dn{display:inline-block;width:0;height:0;border-left:.32em solid transparent;border-right:.32em solid transparent;vertical-align:.04em}
+.tri-up{border-bottom:.46em solid currentColor}
+.tri-dn{border-top:.46em solid currentColor}
+.r-color-total{font-size:var(--text-heading);line-height:var(--leading)}
+.sc-cards{font-size:var(--text-body);line-height:var(--leading);max-width:calc(50vw - var(--card-h) * 0.42)}
+.sc-cards .wager-icon{color:inherit}   /* breakdown wager icons take the pile colour, like the digits */
+.r-line>span:nth-child(2) .wager-icon{color:var(--parchment)}   /* wager-subtotal row label handshake matches the text */
+   card, white numeral/handshake, so they read as cards (not confusable with scores) */
+   for "10" and the wager icon, everything centered. */
+
+/* STATS SCREEN */
+#stats-screen{overflow-y:auto;-webkit-overflow-scrolling:touch;justify-content:flex-start;padding-top:max(var(--gap-lg),env(safe-area-inset-top))}
+.stats-section{background:linear-gradient(135deg,var(--surface),var(--surface-deep));border:var(--border-w) solid var(--hairline);border-radius:var(--gap-sm);padding:var(--gap-sm);margin-bottom:var(--gap-sm)}
+.stats-section h3{font-size:var(--text-body);line-height:var(--leading);margin-bottom:var(--gap-xs)}
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;font-size:var(--text-body);line-height:var(--leading)}
+.stats-personality-grid,.stats-variant-grid{display:flex;flex-direction:column;gap:var(--space-micro)}
+.stats-record-row{display:flex;align-items:center;gap:var(--gap-sm);font-size:var(--text-body);line-height:var(--leading)}
+.stats-record-row .rec-name{min-width:var(--card-h);font-size:var(--text-body);line-height:var(--leading)}
+.stats-record-row .rec-bar{flex:1;display:flex;gap:var(--gap-sm)}
+.stats-record-row .rec-wr{font-size:var(--text-body);line-height:var(--leading);min-width:var(--gap-xxl);text-align:right}
+.stats-actions{display:flex;flex-direction:column;align-items:center;gap:var(--gap-xs);margin-top:var(--gap-xs);padding-bottom:max(var(--gap-lg),env(safe-area-inset-bottom))}
+/* .btn-reset removed — use .btn.danger.secondary instead */
+
+/* ACHIEVEMENTS — compact tappable rows; tap a badge for its tier requirements */
+.achievements-grid{display:flex;flex-direction:column;gap:var(--gap-xs);width:100%}
+.achievement-badge{display:flex;align-items:center;gap:var(--gap-sm);padding:var(--gap-xs) var(--gap-sm);border-radius:var(--gap-xs);border:var(--border-w) solid var(--hairline);background:rgba(255,255,255,.03);transition:all var(--dur-snap) var(--anim-ease);cursor:pointer}
+.achievement-badge.unlocked{border-color:color-mix(in srgb, var(--gold-pure) 50%, transparent);background:color-mix(in srgb, var(--gold-pure) 6%, transparent)}
+.achievement-badge.locked{opacity:.45}
+.achievement-badge.locked .ach-icon{filter:grayscale(1)}
+.ach-icon{font-size:var(--text-heading);flex-shrink:0;width:var(--gap-xl);text-align:center;line-height:1}
+.ach-info{display:flex;flex-direction:column;gap:var(--space-micro);min-width:0;flex:1}
+.ach-name{font-size:var(--text-body);line-height:var(--leading);}
+.ach-desc{font-size:var(--text-body);line-height:var(--leading)}
+/* Tier-requirement detail, revealed by tapping the badge */
+.ach-tiers{display:none;font-size:var(--text-body);line-height:var(--leading);border-top:var(--border-w) solid color-mix(in srgb, var(--gold) 15%, transparent);padding-top:var(--space-micro);margin-top:var(--space-micro)}
+.achievement-badge.expanded .ach-tiers{display:block}
+/* Unlock-moment toast: detail hidden until tapped */
+.ach-toast-detail{display:none;font-size:var(--text-body);line-height:var(--leading);margin-top:var(--space-micro)}
+.toast.expanded .ach-toast-detail{display:block}
+
+
+/* ONBOARDING TUTORIAL — uses .overlay scrim, flex-column layout */
+.tutorial-overlay{position:fixed;inset:0;background:rgba(7,5,3,.97);z-index:5300;display:none;flex-direction:column;align-items:center;justify-content:center;padding:var(--gap-lg);touch-action:pan-y}
+.tutorial-overlay.active{display:flex}
+.tutorial-skip{position:absolute;top:max(var(--slot-pad),env(safe-area-inset-top));right:var(--slot-pad);background:none;border:none;font-size:var(--text-body);line-height:var(--leading);cursor:pointer;padding:var(--gap-xs) var(--gap-sm);opacity:.7;z-index:1}
+.tutorial-skip:active{opacity:1}
+.tutorial-slides{position:relative;width:var(--box-w);flex:0 0 auto;overflow:hidden}
+.tutorial-slide{display:none;flex-direction:column;align-items:center;text-align:center;padding:0 var(--gap-xs);animation:tut-fade-in var(--dur-fade) var(--anim-ease)}
+.tutorial-slide.active{display:flex}
+@keyframes tut-fade-in{from{opacity:0;transform:translateY(var(--gap-sm))}to{opacity:1;transform:translateY(0)}}
+.tutorial-icon{font-size:var(--text-title);margin-bottom:var(--gap-lg)}
+.tutorial-title{font-size:var(--text-heading);line-height:var(--leading);margin-bottom:var(--gap-sm);text-shadow:0 var(--space-thin) var(--gap-xs) rgba(0,0,0,.5)}
+.tutorial-text{font-size:var(--text-body);line-height:var(--leading);max-width:calc(var(--card-h) * 4.236);margin-bottom:var(--gap-lg)}
+.tutorial-dots{display:flex;gap:var(--gap-xs);margin-top:var(--gap-lg);margin-bottom:var(--gap-sm)}
+.tutorial-dot{width:var(--gap-xs);height:var(--gap-xs);border-radius:50%;background:color-mix(in srgb, var(--gold) 20%, transparent);border:var(--border-w) solid color-mix(in srgb, var(--gold) 30%, transparent);transition:all var(--dur-snap) var(--anim-ease)}
+.tutorial-dot.active{background:var(--gold);border-color:var(--gold-bright);box-shadow:0 0 var(--gap-xs) color-mix(in srgb, var(--gold) 40%, transparent)}
+/* Primary = one definition, shared by dialog buttons. (Gradient is flat gold while
+   round-2 aliases --gold-dim→--gold; restoring --gold-dim re-splits it.) */
+.btn.primary,.centered-modal .modal-btn.primary{background:linear-gradient(160deg,var(--gold),var(--gold-dim));border-color:var(--gold-bright)}
+.btn.primary:active{background:linear-gradient(160deg,var(--gold-dim),var(--gold-deep))}
+
+/* IPAD LANDSCAPE — layout only (sizing via JS computeLayout) */
+@media(orientation:landscape){
+}
+
+/* HIGH CONTRAST MODE */
+.high-contrast .card{border-width:var(--border-w);border-style:solid}
+.high-contrast .card.color-red{border-color:#ff3333;box-shadow:0 0 var(--gap-micro) rgba(255,50,50,.3)}
+.high-contrast .card.color-green{border-color:#22dd55;box-shadow:0 0 var(--gap-micro) rgba(34,221,85,.3)}
+.high-contrast .card.color-blue{border-color:#3388ff;box-shadow:0 0 var(--gap-micro) rgba(51,136,255,.3)}
+.high-contrast .card.color-white{border-color:#ddddee;box-shadow:0 0 var(--gap-micro) rgba(221,221,238,.2)}
+.high-contrast .card.color-yellow{border-color:var(--hc-yellow);box-shadow:0 0 var(--gap-micro) rgba(255,221,0,.3)}
+.high-contrast .card.color-purple{border-color:#aa77ff;box-shadow:0 0 var(--gap-micro) rgba(170,119,255,.3)}
+.high-contrast .card-value{color:#ffffff;font-size:calc(var(--card-h) * var(--phi-2));text-shadow:0 var(--space-thin) var(--gap-micro) rgba(0,0,0,1),0 0 var(--gap-sm) rgba(0,0,0,.8)}
+.high-contrast .card-corner{color:#ffffff;background:rgba(0,0,0,.7);font-size:calc(var(--card-h) * var(--phi-4));padding:calc(var(--card-h) * var(--phi-8)) calc(var(--card-w) * var(--phi-5))}
+.high-contrast .card.selected{box-shadow:0 0 var(--gap-lg) var(--hc-yellow),0 0 var(--gap-xxl) color-mix(in srgb,var(--hc-yellow) 40%,transparent);border-color:var(--gold-pure)!important;border-width:var(--border-w)}
+.high-contrast .card.pile-space{border:var(--border-w) dashed rgba(255,255,255,.35);background:rgba(255,255,255,.08)}
+.high-contrast .card.target{border-width:var(--border-w);box-shadow:0 0 var(--gap-lg) color-mix(in srgb,var(--hc-yellow) 70%,transparent)}
+.high-contrast .card.undoable{border-width:var(--border-w);box-shadow:0 0 var(--gap-sm) rgba(255,100,50,.4)}
+.high-contrast .toast{border:var(--border-w) solid color-mix(in srgb,var(--hc-yellow) 70%,transparent);}
+.high-contrast .target-label{font-size:var(--text-card);line-height:var(--leading);text-shadow:0 0 var(--gap-sm) color-mix(in srgb,var(--hc-yellow) 80%,transparent)}
+.high-contrast .r-line{font-size:var(--text-body);line-height:var(--leading)}
+
+/* TIMER */
+@keyframes timerPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(var(--scale-pulse-strong)); }
+}
+.timer-pulse {
+  animation: timerPulse calc(var(--dur-fade) * 2) var(--ease-inout) infinite;
+  display: inline-block !important;
+}
+
+/* REPLAY */
+/* Replay control bar — top, clears the notch, above all cards (in-flight
+   boost is dest z + 3500). Solid surface so the board reads cleanly below. */
+/* Replay control bar — single row, BOTTOM, overlay. The board reserves its
+   height via --bar-band-h (layout.js) so it never covers the hand. */
+/* Base chrome (surface, height, border, padding) is shared with #live-bar above —
+   only the replay-specific bits live here. */
+/* (The replay controls now live inside the unified #bottom-bar / #replay-controls
+   — see the bottom-bar block above. #replay-control-bar + .replay-controls-inner
+   were removed with the two-bars design.) */
+/* Scrubber — draggable progress bar with random access to any move. Track fill
+   is painted via --replay-progress (JS) since webkit has no native range fill. */
+.replay-scrubber {
+  flex: 1;
+  min-width: 0;                 /* allow shrink inside flex — no row overflow */
+  max-width: calc(var(--card-h) * 5);  /* cap width so the row centres on wide screens */
+  height: var(--gap-xxl);       /* touch target — >=44px */
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+.replay-scrubber:focus { outline: none; }
+.replay-scrubber::-webkit-slider-runnable-track {
+  height: var(--gap-micro);
+  border-radius: var(--gap-micro);
+  background: linear-gradient(90deg,
+    var(--gold) 0 var(--replay-progress, 0%),
+    var(--surface-pressed) var(--replay-progress, 0%));
+}
+.replay-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: calc(var(--gap-xl) * 0.8);
+  height: calc(var(--gap-xl) * 0.8);
+  border-radius: 50%;
+  background: var(--gold-bright);
+  border: var(--border-w) solid var(--surface-deep);
+  box-shadow: 0 var(--space-thin) var(--gap-xs) rgba(0,0,0,.4);
+  margin-top: calc((var(--gap-micro) - var(--gap-xl) * 0.8) / 2); /* center on track */
+}
+.replay-scrubber:active::-webkit-slider-thumb { transform: scale(var(--scale-pulse-soft)); }
+.replay-scrubber::-moz-range-track {
+  height: var(--gap-micro);
+  border-radius: var(--gap-micro);
+  background: var(--surface-pressed);
+}
+.replay-scrubber::-moz-range-progress {
+  height: var(--gap-micro);
+  border-radius: var(--gap-micro);
+  background: var(--gold);
+}
+.replay-scrubber::-moz-range-thumb {
+  width: calc(var(--gap-xl) * 0.8);
+  height: calc(var(--gap-xl) * 0.8);
+  border-radius: 50%;
+  background: var(--gold-bright);
+  border: var(--border-w) solid var(--surface-deep);
+  box-shadow: 0 var(--space-thin) var(--gap-xs) rgba(0,0,0,.4);
+}
+/* (The ‹ › step buttons use the shared .bar-icon-btn now — see the bottom-bar
+   block above.) */
+.replay-info {
+  flex: 0 0 auto;
+  /* Fixed min-width sized to the worst-case "888 / 888" so the slider width + the
+     arrow positions NEVER shift as the move count changes (Cinzel numerals are
+     proportional — no tabular figures — so the fixed slot, not tabular-nums, holds it). */
+  min-width: calc(calc(var(--card-h) * var(--phi-4)) * 4.6);
+  font-family: 'Cinzel', serif;   /* move counter is numbers → Cinzel like every other number display */
+  font-size: var(--text-body);
+  line-height:var(--leading);
+  white-space: nowrap;
+  text-align: center;
+}
+/* Back-arrow (top-left) — the single app-standard "leave" control, floating
+   above the board, NOT in the bar. Eye (top-right) toggles Reveal. */
+/* Replay back button = the app-standard .back-btn arrow (same on every screen);
+   only lift it above the board cards + add a shadow so it reads over the board. */
+#replay-back-btn {
+  z-index: 7001;
+  filter: drop-shadow(0 var(--space-thin) var(--gap-micro) rgba(0,0,0,.7));
+}
+/* Eye reveal toggle — beside the opponent hand (right), sized to the app's
+   nav-icon tier (--text-heading, matching .back-btn). Vertical placement is tuned to
+   the peek here; exact "centered beside the FULL hand" lands in the A+B pass. */
+.replay-eye {
+  position: absolute;
+  right: var(--board-margin);
+  top: max(env(safe-area-inset-top), var(--gap-xs));
+  margin-top: var(--gap-lg);
+  z-index: 7001;
+  width: calc(var(--card-h) * var(--phi-2));
+  height: calc(var(--card-h) * var(--phi-2));
+  font-size: var(--text-heading);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  
+  cursor: pointer;
+  padding: 0;
+  transition: transform var(--dur-snap) var(--anim-ease), color var(--dur-snap) var(--anim-ease);
+  filter: drop-shadow(0 var(--space-thin) var(--gap-micro) rgba(0,0,0,.7));
+}
+.replay-eye:active { transform: scale(var(--scale-press)); }
+.replay-eye.active {  }
+/* During replay, hide live game chrome — the gear menu and undo button are
+   meaningless in playback. The bar sits in the reserved bottom band. */
+#game-screen.replay-mode #floating-undo-btn { display: none !important; }
+.replay-highlight {
+  box-shadow: 0 0 var(--gap-sm) var(--space-micro) color-mix(in srgb,var(--gold-bright) 80%,transparent), 0 0 calc(var(--gap-sm) * 2) var(--gap-sm) color-mix(in srgb,var(--gold-bright) 40%,transparent) !important;
+  border-color: var(--gold-bright) !important;
+  z-index: 5;
+}
+
+/* SPLASH SCREEN */
+#splash{position:fixed;inset:0;z-index:10000;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity var(--dur-fade) var(--anim-ease)}
+#splash.fade-out{opacity:0;pointer-events:none}
+/* Splash paints BEFORE layout.js populates the sizing vars, so it is the
+   one place CSS-var fallbacks are correct (the no-fallback rule assumes
+   layout already ran). Also: the phi sizes derive from viewport HEIGHT —
+   on a narrow phone the decorative title overflowed the WIDTH, so cap
+   against vw. */
+#splash .splash-title{font-family:'Cinzel Decorative',serif;font-size:min(var(--text-display,13vw),13vw);line-height:var(--leading);color:var(--gold);text-shadow:0 0 24px color-mix(in srgb, var(--gold) 30%, transparent),0 1px 4px rgba(0,0,0,.6);letter-spacing:var(--gap-micro,2px);max-width:94vw;text-align:center}
+#splash .splash-glow{position:absolute;width:calc(min(var(--card-h,60px) * 2.618, 60vw));height:calc(min(var(--card-h,60px) * 2.618, 60vw));border-radius:50%;background:radial-gradient(circle,color-mix(in srgb, var(--gold) 15%, transparent) 0%,transparent 70%);pointer-events:none}
+
+/* Signed-in indicator on the lobby profile button (.corner-btn is already
+   position:absolute, which makes it the containing block for the dot) */
+.corner-btn.signed-in::after{content:'';position:absolute;top:15%;right:15%;width:0.55em;height:0.55em;border-radius:50%;background:var(--success);border:var(--border-w) solid var(--surface-deep)}
+/* When the account photo is showing, the avatar itself signals "signed in" — drop
+   the redundant green dot (keep it only for the silhouette fallback). */
+.corner-btn:has(.avatar)::after{display:none}
+/* Signed-in account photo replaces the silhouette glyph */
+/* Profile icon (emoji OR avatar) sits one φ-tier above the other corner glyphs
+   (--text-title vs the gear's --text-heading) — it's you, it anchors the corner.
+   Avatar = 1em so signed-in/out are the same size (was a magic 1.2em). */
+#profile-corner-btn{font-size:var(--text-title)}
+.corner-btn .avatar{width:1em;height:1em;border-radius:50%;object-fit:cover;border:var(--border-w) solid var(--gold);display:block}
+
+/* CONFIG CHIPS — standing confirmation of the next game's setup; tap to change */
+/* Config chip = unified button + a trailing pencil (tap-to-change affordance). */
+.config-chip::after{content:' \270E'}
+
+/* Lobby greeting — the saved player name, anchored under the title as a
+   deliberate identity line (tap to edit; the pencil says so) */
+.lobby-greeting{font-family:'Cinzel',serif;font-size:var(--text-heading);line-height:var(--leading);cursor:pointer;margin-bottom:var(--gap-sm);text-align:center}
+.lobby-greeting::after{content:' \270E';font-size:var(--text-body)}
+
+/* Setup-box internals: a scrollable body + a pinned footer so the Play button never
+   hides below the fold. A box that owns a .sheet-scroll clips + delegates its scroll
+   to that child (so the footer can pin). (Was the bottom-sheet layout; now centered.) */
+.sheet-label{margin-bottom:var(--space-micro)}
+.panel:has(.sheet-scroll){overflow:hidden}
+.sheet-scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;width:100%;display:flex;flex-direction:column;align-items:center;min-height:0}
+.sheet-footer{margin-top:var(--gap-sm);flex-shrink:0}
+.opponent-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-micro);width:100%;margin-bottom:var(--space-micro)}
+.opponent-grid .variant-btn{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* A config chip inside a dialog box stretches to the box like the buttons below it
+   (the lobby chip keeps its own --menu-w via a more specific #lobby-screen rule). */
+.panel .config-chip{width:100%}
+
+/* ===== Design-pass fixes (screenshot review 2026-06-12) ===== */
+/* Panel button groups: breathing room between a dialog's message and its buttons.
+   (Full-width buttons now come from the global .btn-group>.btn default above.) */
+.panel .btn-group{margin-top:var(--gap-sm)}
+/* Lobby: equal-width primary buttons */
+/* Lobby: name box, both action buttons, and the config chip share ONE width
+   (--menu-w) so the stacked menu lines up — was card-h*2.618 vs min(78vw,340px). */
+#lobby-screen .btn-group .btn,#lobby-screen .btn-group .config-chip{width:var(--menu-w);min-width:0}
+/* Lobby spacing rhythm (proximity): "Play a Bot" + its config picker are ONE
+   choice → grouped tight (--gap-xs); the bot-unit vs "Play a Human" are separate
+   choices → --gap-lg between them. φ ladder: intra-group < between-choices. */
+.lobby-choice{display:flex;flex-direction:column;align-items:center;gap:var(--gap-xs)}
+#lobby-screen .btn-group{gap:var(--gap-lg)}
+/* Stats sections inside flex panels shrank to content, collapsing the
+   space-between rows ("W / L / D0 / 0 / 0") */
+.panel .stats-section{width:100%}
+/* You page: every box shares the full container width (sections, the JS-rendered
+   content wrappers, and the action group) — was only granted inside .panel, so
+   You-page boxes each shrank to content. Buttons join the same one-width contract. */
+.you-container .stats-section,.you-container #stats-content,.you-container #achievements-content,.you-container .stats-actions{width:100%}
+.stats-actions .btn{width:100%;min-width:0}
+/* List screens anchor at the top — empty states must not float mid-void */
+#you-screen{justify-content:flex-start;padding-top:calc(env(safe-area-inset-top) + var(--gap-lg) * 2.5)}
+.you-container{width:var(--box-w);margin:0 auto;display:flex;flex-direction:column;align-items:center}
+
+
+
+/* Layout utilities — patterns repeated 3+ times graduate from inline styles */
+.col-center{display:flex;flex-direction:column;align-items:center}
+/* Muted caption / sub-note text (dim + centered) */
+.muted-note{text-align:center}
+.opt-row{display:flex;gap:var(--gap-xs);margin-bottom:var(--gap-sm);align-items:center;flex-wrap:wrap;justify-content:center}
+/* equal-width variant: all options share one row (e.g. turn timer) */
+.opt-row.equal{width:100%;flex-wrap:nowrap}
+.opt-row.equal .variant-btn{flex:1;padding-left:var(--gap-xs);padding-right:var(--gap-xs);white-space:nowrap}
+.field{width:100%;margin-bottom:var(--gap-sm)}
+.mt-sm{margin-top:var(--gap-sm)}
+
+/* Achievement badge progress + count + celebratory toast shimmer */
+.ach-count{font-size:var(--text-body);line-height:var(--leading);letter-spacing:0;text-transform:none}
+.ach-progress{display:block;height:var(--space-thin);background:color-mix(in srgb, var(--gold) 18%, transparent);border-radius:var(--gap-micro);margin-top:var(--space-micro);overflow:hidden}
+.ach-progress-bar{display:block;height:100%;background:var(--gold);border-radius:var(--gap-micro)}
+.ach-progress-num{font-size:var(--text-body);line-height:var(--leading)}
+@keyframes ach-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.toast.toast-gold{background:linear-gradient(110deg,rgba(30,20,10,.92) 30%,color-mix(in srgb, var(--gold-pure) 14%, transparent) 50%,rgba(30,20,10,.92) 70%);/* celebratory gold-toast shimmer; duration consolidated 1.2s→--dur-fade-slow */
+background-size:200% 100%;animation:ach-shimmer var(--dur-fade-slow) var(--anim-ease)}
+/* "New achievement" marker on the lobby profile button — a gold star (the
+   achievement symbol), not an unexplained dot; distinct corner from the
+   green signed-in dot so both can show */
+.corner-btn.ach-new::before{content:'\2605';position:absolute;top:8%;left:8%;font-size:.5em;line-height:1;text-shadow:0 0 var(--gap-xs) var(--gold-glow),0 var(--border-w) var(--space-thin) rgba(0,0,0,.8)}
+
+/* Tiered-achievement extras: collapsible category headers + tier pips */
+.ach-cat-head{display:flex;align-items:center;gap:var(--gap-xs);width:100%;background:none;border:none;cursor:pointer;text-align:left;font-size:var(--text-body);line-height:var(--leading);padding:var(--gap-xs) 0;margin-top:var(--gap-xs)}
+.ach-cat-head .ach-cat-chevron{transition:transform var(--dur-snap) var(--anim-ease);}
+.ach-cat-head.open .ach-cat-chevron{transform:rotate(90deg)}
+.ach-cat-head .ach-count{margin-left:auto}
+.ach-cat-body{display:none;width:100%}
+.ach-cat-body.open{display:block}
+.ach-pips{display:inline-flex;gap:var(--space-micro);vertical-align:middle;margin-left:var(--space-micro)}
+.ach-pip{width:.4em;height:.4em;border-radius:50%;background:color-mix(in srgb, var(--gold) 25%, transparent)}
+.ach-pip.on{background:var(--gold-pure)}
+/* Rarity chips + hidden ("???") achievements */
+.ach-rarity{font-size:var(--text-body);line-height:var(--leading);vertical-align:middle}
+.r-legendary{text-shadow:0 0 var(--gap-xs) var(--gold-glow)}
+.achievement-badge.hidden-ach{border-style:dashed}
+
+/* AI opponent difficulty group labels (game-setup sheet) — centered like
+   the section labels, italic to read as a sub-label */
+.ai-tier-label{font-size:var(--text-body);line-height:var(--leading);margin:var(--space-micro) 0;text-align:center}
+
+/* Leaderboard rows */
+#leaderboard-screen{justify-content:flex-start;padding-top:calc(env(safe-area-inset-top) + var(--gap-lg) * 2.5)}
+.lb-row{display:flex;align-items:center;gap:var(--gap-xs);padding:var(--gap-xs) var(--gap-sm);border-bottom:var(--border-w) solid var(--hairline)}
+.lb-row.me{background:color-mix(in srgb, var(--gold) 12%, transparent);border-radius:var(--gap-xs)}
+.lb-rank{min-width:1.6em;text-align:right}
+.lb-id{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.lb-nameline{display:flex;align-items:baseline;gap:var(--space-micro);min-width:0}
+.lb-name{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-uname{font-size:var(--text-body);line-height:var(--leading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-you{flex:none;font-size:var(--text-body);line-height:var(--leading);border:var(--border-w) solid color-mix(in srgb, var(--gold) 40%, transparent);border-radius:var(--gap-xs);padding:0 var(--gap-micro);vertical-align:middle}
+.lb-record{flex:none;font-family:'Crimson Pro',serif;font-size:var(--text-body);line-height:var(--leading);font-variant-numeric:tabular-nums;white-space:nowrap}
+.lb-rating{flex:none;min-width:2.4em;text-align:right}
+
+/* Profile display-name: saved name as text with an edit affordance;
+   input+Save only appear in edit mode */
+.profile-name-row{display:flex;align-items:center;gap:var(--gap-xs);justify-content:center}
+.profile-name{font-size:var(--text-body);line-height:var(--leading);}
+.profile-username{font-size:var(--text-body);line-height:var(--leading);}
+.profile-at{font-size:var(--text-body);line-height:var(--leading);}
+.icon-btn{background:none;border:none;font-size:var(--text-body);cursor:pointer;padding:var(--gap-xs);opacity:.7;transition:opacity var(--dur-snap) var(--anim-ease);display:inline-flex;align-items:center}
+.icon-btn:active{opacity:1}
+
+/* ===== DEBUG: section outlines (toggle with ?sections in the URL) ===== */
+body.debug-sections .board-area > [id]{outline:1px solid rgba(80,200,255,.65);outline-offset:-1px;position:relative}
+body.debug-sections #card-pool{outline:none}
+body.debug-sections .board-area > [id]::after{content:attr(id);position:absolute;top:0;left:0;font:600 10px/1.3 ui-monospace,monospace;background:rgba(0,0,0,.7);padding:1px 4px;border-radius:0 0 3px 0;z-index:9990;pointer-events:none;letter-spacing:.03em}
+/* mark the elastic gaps too (the margin below each section) */
+body.debug-sections .board-area > [id]:not(#card-pool){box-shadow:0 1px 0 rgba(255,120,0,.5)}
