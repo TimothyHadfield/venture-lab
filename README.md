@@ -16,8 +16,14 @@ Open `index.html` in a browser. No build step, no accounts, no network.
 The board *is* the live game's board — same layout engine, same card art, same
 fans and animations. What's different:
 
-- **Draw pile face-up.** The next card sits on top of the stack. **Fan deck**
-  spreads the whole pile out in true draw order, next card at the front.
+- **Deck columns** — the draw pile as a panel down the right: one column per
+  colour, one row per draw position, top = next. Same layout as the xray panel
+  in the cheat toolkit. The board's own draw pile is left face-down as normal;
+  the order is read off the panel. Empty cells are the information — a gap in
+  the red column means another colour fills that spot in the sequence. Rows are
+  shorter than a card so the whole deck fits without scrolling, and each number
+  is pinned to its card's top strip so the overlap never hides it. The next card
+  is ringed gold and tagged NEXT.
 - **Opponent's hand face-up**, in place, right way up.
 - **Potential** — one number under each of the ten piles (yours and theirs).
 
@@ -62,14 +68,13 @@ multiplayer, auth, stats and the AI worker — none of which is vendored. The
 player actions (`selectCard` / `playToExpedition` / `discardTo` / `drawFrom*`)
 are lifted from the game's own `gamelogic.js` so interaction behaves identically.
 
-### The four vendor edits
+### The two vendor edits
 
 All marked `LAB PATCH`, all no-ops when `LAB` is undefined:
 
 - `rendering.js` — reveal the opponent's hand in live play (upstream: replay only)
-- `rendering.js` — reveal the draw pile in live play (upstream: replay only)
-- `rendering.js` — order and z-band the fanned deck by draw order in live play
-- `layout.js` — subtract the lab bar's height from the viewport the board solves against
+- `layout.js` — subtract the lab bar's height and the deck panel's width from
+  the viewport the board solves against
 
 Re-vendoring from the live site means re-applying these four.
 

@@ -47,6 +47,20 @@
 .lab-pot.neg{color:var(--danger,#c0605a)}
 .lab-pot.zero{color:var(--parchment,#e8dcc0);opacity:.55}
 
+/* The game's own corner buttons (back arrow, gear) sit at the screen corners
+   and so collide with the lab bar. Neither does anything here — the bar
+   replaces them — so they're hidden rather than left as dead overlapping UI. */
+#game-screen .corner-btn{display:none}
+
+#vc-deck{
+  position:fixed;top:44px;right:4px;bottom:4px;z-index:5000;overflow:hidden;
+  background:rgba(20,14,8,.9);border:1px solid #c0a030;border-radius:8px;padding:8px;
+  box-shadow:0 4px 16px rgba(0,0,0,.5);
+}
+#vc-deck-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+#vc-deck-h{color:#c0a030;font:700 12px monospace}
+#vc-deck-list{overflow:hidden}
+
 #lab-flash{
   position:fixed;left:50%;top:46px;transform:translateX(-50%);z-index:7000;
   background:rgba(26,15,10,.94);border:1px solid var(--gold,#d4a843);border-radius:8px;
@@ -77,8 +91,7 @@
     <option value="sharp">Opponent: Sharp</option>
   </select>
   <span class="lab-sep"></span>
-  <button id="lab-deck" title="Draw pile face-up">Draw pile</button>
-  <button id="lab-fan" title="Fan the draw pile out in draw order">Fan deck</button>
+  <button id="lab-deck" title="Draw pile as colour columns on the right">Deck columns</button>
   <button id="lab-opp" title="Opponent's hand face-up">Opponent hand</button>
   <button id="lab-pot" title="Per-colour potential under each pile">Potential</button>
 </div>

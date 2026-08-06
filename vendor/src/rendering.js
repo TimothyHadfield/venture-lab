@@ -778,12 +778,7 @@ function positionAllCards(layout, immediate) {
   // expanded (face-up, fanned). The fan REUSES the pile spread system — spreadPile /
   // collapsingPile / expandedFanOffset / pileZBase — exactly like a spread discard pile.
   const inReplay = (typeof _replayActive !== 'undefined' && _replayActive);
-  // LAB PATCH — the lab reveals the draw pile in LIVE play (upstream: replay
-  // only). Face-up alone shows the next card on top of the stack; the lab's
-  // "Fan deck" control sets spreadPile={who:'deck'} to open the whole order,
-  // reusing the fan right below.
-  const revealDeck = (typeof LAB !== 'undefined' && LAB.revealDeck) ||
-                     (inReplay && typeof _replayDeckFaceUp !== 'undefined' && _replayDeckFaceUp);
+  const revealDeck = inReplay && typeof _replayDeckFaceUp !== 'undefined' && _replayDeckFaceUp;
   const deckExp = spreadPile && spreadPile.who === 'deck';                        // fanned
   const deckCollapsing = collapsingPile && collapsingPile.who === 'deck';         // fan collapsing back
   const cyDeck = drawSecY + drawTop + slotPad/2 + cardH/2;
@@ -805,14 +800,6 @@ function positionAllCards(layout, immediate) {
     }
     const idx = c => order.has(c.id) ? order.get(c.id) : n + drawPile.indexOf(c); // never-drawn keep tail order
     deckSeq = drawPile.slice().sort((x, y) => idx(x) - idx(y));  // j=0 = next drawn
-  } else if (typeof LAB !== 'undefined' && LAB.revealDeck) {
-    // LAB PATCH — same "j=0 is the next card drawn" ordering, live. Live draws
-    // are drawPile.pop(), so draw order is simply the array reversed. The fan
-    // geometry and z-band below are written against that convention, so with
-    // this in place the deck fans out in the order it will actually come off.
-    // Only deckSeq's ORDER changes; the stacked (unfanned) view positions by
-    // the array index `i`, so it is untouched.
-    deckSeq = drawPile.slice().reverse();
   }
   deckSeq.forEach((card, j) => {
     positioned.add(card.id);
@@ -824,9 +811,7 @@ function positionAllCards(layout, immediate) {
     updateCardVisual(card.id, {
       faceUp: revealDeck,
       // Next-drawn on top. Replay: by draw order (j=0 highest). Live: array order.
-      // LAB PATCH — a fanned deck needs the fan's z-band in LIVE play too, or
-      // the spread cards keep the stack's z and paint in the wrong order.
-      zIndex: (inReplay || deckExp || deckCollapsing) ? (deckZBase + (deckSeq.length - j)) : (2000 + jitterIdx),
+      zIndex: inReplay ? (deckZBase + (deckSeq.length - j)) : (2000 + jitterIdx),
       selected: false,
       // stopPropagation: the deck fully handles its own click via the cycle; without
       // it, the click bubbles to the global click-outside-collapse handler

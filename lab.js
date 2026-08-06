@@ -46,7 +46,7 @@ function viewerName(){ return 'You'; }
 function getName(){ return 'You'; }
 function toggleScore(){}
 function showReplayResults(){}
-function toggleReplayDeck(){ LAB.revealDeck = !LAB.revealDeck; _labSyncToggles(); renderGame(); }
+function toggleReplayDeck(){}
 function pushUndoSnapshot(){}
 function popUndoSnapshot(){}
 function onTurnChange(){}
@@ -376,6 +376,156 @@ function _labRenderPotential(){
 on('rendered', _labRenderPotential);
 
 /* ============================================================================
+   THE DECK PANEL — draw pile as COLOUR COLUMNS on the right
+
+   A port of the xray panel from the cheat toolkit (cheats.js `_xrayUpdate`),
+   which is how this was built for the live site. The board's own draw pile is
+   left alone (face-down, as the game draws it); the whole order is read off
+   this panel instead.
+
+   One column per colour, one grid ROW per draw position, top = next draw. A
+   card sits in its colour's column at its depth row, so the EMPTY cells are
+   the information: a gap in the red column at row 7 means some other colour
+   fills that spot in the sequence. Rows are shorter than a card so the whole
+   deck fits without scrolling — cards overlap, and each card's number is
+   pinned to its TOP strip so the overlap never hides it. Deeper cards paint on
+   top, for the same reason.
+   ========================================================================== */
+
+let _deckEl = null, _deckSig = '', _labCS = null;
+
+/* Measure a real card once — the panel uses the game's own card size so the
+   columns match the board. */
+function _labCardSize(){
+  if (_labCS && _labCS.w > 0) return _labCS;
+  const t = document.createElement('div');
+  t.className = 'card color-red';
+  t.style.cssText = 'position:absolute;visibility:hidden;left:-9999px';
+  document.body.appendChild(t);
+  const w = t.offsetWidth, h = t.offsetHeight;
+  t.remove();
+  _labCS = { w: w || 51, h: h || 83 };
+  return _labCS;
+}
+
+/* A deck card: the game's own card art, with the number/wager pinned to a top
+   strip `labelH` tall — the strip is the part the vertical overlap leaves
+   visible. */
+function _labDeckFace(card, labelH){
+  const isW = card.value === 0;
+  const el = document.createElement('div');
+  el.className = 'card color-' + card.color + (isW ? ' wager' : '');
+  el.style.position = 'relative';
+  el.style.pointerEvents = 'none';
+  el.style.cursor = 'default';
+  const fs = Math.max(9, Math.min(labelH * 0.82, _labCardSize().h * 0.32));
+  const lab = document.createElement('div');
+  lab.innerHTML = isW ? WAGER_ICON : card.value;
+  lab.style.cssText = 'position:absolute;top:0;left:0;right:0;height:' + labelH + 'px;z-index:2;'
+    + 'display:flex;align-items:center;justify-content:center;'
+    + "font:700 " + fs + "px 'Cinzel',serif;color:#fff;"
+    + 'text-shadow:0 1px 2px rgba(0,0,0,.95),0 0 3px rgba(0,0,0,.7)';
+  if (isW){ const s = lab.querySelector('svg'); if (s){ s.style.height = fs + 'px'; s.style.width = 'auto'; } }
+  el.appendChild(lab);
+  return el;
+}
+
+function _labDeckPanel(){
+  if (!LAB.revealDeck){
+    if (_deckEl){ _deckEl.style.display = 'none'; }
+    _deckSig = '';
+    return;
+  }
+  if (!_deckEl){
+    _deckEl = document.createElement('div');
+    _deckEl.id = 'vc-deck';
+    _deckEl.innerHTML =
+      '<div id="vc-deck-head"><b id="vc-deck-h"></b></div><div id="vc-deck-list"></div>';
+    document.body.appendChild(_deckEl);
+  }
+  _deckEl.style.display = '';
+  if (!gameState) return;
+
+  const draw  = getCards(gameState, 'drawPile').filter(Boolean);
+  const order = draw.slice().reverse();              // index 0 = next card drawn
+
+  const sig = order.map(c => c.id).join(',');
+  if (sig === _deckSig) return;                      // nothing changed — don't rebuild
+  _deckSig = sig;
+
+  _deckEl.querySelector('#vc-deck-h').textContent =
+    'DECK — ' + draw.length + ' left   (top = next draw ↓)';
+
+  const list = _deckEl.querySelector('#vc-deck-list');
+  list.innerHTML = '';
+
+  const colors = CONFIG.colors;
+  const nc = colors.length;
+  const { w: cw, h: ch } = _labCardSize();
+  const gapX = 8;
+
+  // Fit the columns to the panel with a uniform zoom (never upscale).
+  const innerW = _deckEl.clientWidth - 22;
+  const zoom = Math.max(0.4, Math.min(1, innerW / (nc * cw + (nc - 1) * gapX)));
+
+  // Shrink each depth-row below one card tall so the WHOLE deck fits the panel
+  // height without scrolling. 14px floor keeps the pinned number legible.
+  const headerH = 22;
+  const headEl = _deckEl.querySelector('#vc-deck-head');
+  const availH = Math.max(140, _deckEl.clientHeight - (headEl ? headEl.offsetHeight : 24) - 12);
+  const nRows = order.length;
+  let rowH = ch;
+  if (nRows > 1){
+    const fit = (availH / zoom - ch - headerH) / (nRows - 1);
+    rowH = Math.max(14, Math.min(ch, fit));
+  }
+  const labelH = Math.max(14, Math.min(rowH, ch));
+
+  list.style.display = 'grid';
+  list.style.gridTemplateColumns = 'repeat(' + nc + ', ' + cw + 'px)';
+  list.style.gridTemplateRows = 'auto';              // row 1 = headers, sized to content
+  list.style.gridAutoRows = rowH + 'px';             // < card height ⇒ cards overlap
+  list.style.columnGap = gapX + 'px';
+  list.style.rowGap = '0px';
+  list.style.justifyContent = 'center';
+  list.style.justifyItems = 'center';
+  list.style.alignItems = 'start';
+  list.style.zoom = String(zoom);
+
+  // Column headers — a coloured label per colour so the columns read at a glance.
+  colors.forEach((col, ci) => {
+    const h = document.createElement('div');
+    h.textContent = CONFIG.colorLabels[col] || col;
+    h.style.cssText = 'grid-column:' + (ci + 1) + ';grid-row:1;align-self:center;text-align:center;'
+      + 'width:100%;font:700 11px monospace;color:#fff;border-radius:4px;padding:1px 0;margin-bottom:3px;'
+      + 'background:' + (CONFIG.colorHex[col] || '#888');
+    list.appendChild(h);
+  });
+
+  // Column = colour, row = depth. Deeper cards sit ON TOP so each card's top
+  // strip (which holds its number) is what the overlap leaves showing.
+  order.forEach((c, i) => {
+    const ci = colors.indexOf(c.color);
+    const f = _labDeckFace(c, labelH);
+    f.style.gridColumn = String((ci < 0 ? 0 : ci) + 1);
+    f.style.gridRow = String(i + 2);                 // +2: row 1 holds the headers
+    f.style.zIndex = String(i + 1);                  // deeper cards on top
+    if (i === 0){                                    // the NEXT draw
+      f.style.outline = '3px solid #ffd700';
+      f.style.outlineOffset = '-1px';
+      const tag = document.createElement('div');
+      tag.textContent = 'NEXT';
+      tag.style.cssText = 'position:absolute;top:-3px;right:-2px;z-index:4;'
+        + 'font:700 8px monospace;color:#1a0f0a;background:#ffd700;padding:0 3px;border-radius:3px';
+      f.appendChild(tag);
+    }
+    list.appendChild(f);
+  });
+}
+
+on('rendered', _labDeckPanel);
+
+/* ============================================================================
    GAME SETUP / TEARDOWN
    ========================================================================== */
 
@@ -409,6 +559,34 @@ function _labGameOver(){
 }
 
 /* ------------------------------------------------------------- lab controls */
+
+/* Show/hide the deck panel. The panel occupies a real strip down the right, so
+   the board has to be re-solved for the narrower viewport — LAB.rightInset is
+   what layout.js subtracts, and #game-screen's padding-right matches it, so the
+   board never runs underneath the panel. */
+function _labSetDeckPanel(on){
+  LAB.revealDeck = !!on;
+  const w = LAB.revealDeck ? _labDeckPanelWidth() : 0;
+  LAB.rightInset = w;
+  document.getElementById('game-screen').style.paddingRight = w + 'px';
+  if (_deckEl) _deckEl.style.width = Math.max(0, w - 8) + 'px';
+  _deckSig = '';                       // geometry changed — force a rebuild
+  computeLayout._vw = null;            // invalidate the layout cache
+  renderGame._snapNextRender = true;
+  _labSyncToggles();
+  renderGame();
+}
+
+/* Wide enough for one card per colour plus gaps, capped so it never eats more
+   than a third of a narrow window (the zoom in _labDeckPanel takes up any
+   slack below that). */
+function _labDeckPanelWidth(){
+  const { w: cw } = _labCardSize();
+  const nc = CONFIG.colors.length;
+  const want = nc * cw + (nc - 1) * 8 + 30;
+  return Math.round(Math.max(150, Math.min(want, window.innerWidth / 3)));
+}
+
 function _labSyncToggles(){
   const set = (id, on) => {
     const b = document.getElementById(id);
@@ -417,18 +595,6 @@ function _labSyncToggles(){
   set('lab-deck', LAB.revealDeck);
   set('lab-opp',  LAB.revealOpp);
   set('lab-pot',  LAB.potential);
-  set('lab-fan',  !!(spreadPile && spreadPile.who === 'deck'));
-}
-
-/* Fan the draw pile out in draw order (next card nearest). Reuses the game's
-   own pile-spread system — spreadPile is exactly what a spread discard pile
-   sets — so the fan animates and lays out like every other spread. */
-function _labToggleDeckFan(){
-  const open = spreadPile && spreadPile.who === 'deck';
-  spreadPile = open ? null : { who:'deck', color:'deck' };
-  if (!open && !LAB.revealDeck){ LAB.revealDeck = true; }   // a face-down fan tells you nothing
-  _labSyncToggles();
-  renderGame();
 }
 
 function _labInit(){
@@ -442,20 +608,23 @@ function _labInit(){
   document.getElementById('opponent-name-store').textContent = 'Opponent';
 
   document.getElementById('lab-new').onclick   = () => { SFX.select(); newLabGame(); };
-  document.getElementById('lab-deck').onclick  = () => { LAB.revealDeck = !LAB.revealDeck; _labSyncToggles(); renderGame(); };
-  document.getElementById('lab-fan').onclick   = () => { SFX.select(); _labToggleDeckFan(); };
+  document.getElementById('lab-deck').onclick  = () => { SFX.select(); _labSetDeckPanel(!LAB.revealDeck); };
   document.getElementById('lab-opp').onclick   = () => { LAB.revealOpp  = !LAB.revealOpp;  _labSyncToggles(); renderGame(); };
   document.getElementById('lab-pot').onclick   = () => { LAB.potential  = !LAB.potential;  _labSyncToggles(); renderGame(); };
   document.getElementById('lab-ai').onchange   = (e) => { LAB.ai = e.target.value; };
 
+  _labSetDeckPanel(LAB.revealDeck);   // reserves the strip and sizes the board for it
   _labSyncToggles();
   newLabGame();
 
   // The board is sized from the viewport — re-render on resize, as the real
   // client does (renderGame._snapNextRender makes it snap rather than glide).
   window.addEventListener('resize', () => {
-    renderGame._snapNextRender = true;
-    renderGame();
+    // The reserved strip is derived from the card size, which is derived from
+    // the viewport — so a resize has to re-reserve before the board re-solves.
+    _labCS = null;
+    if (LAB.revealDeck) _labSetDeckPanel(true);
+    else { renderGame._snapNextRender = true; renderGame(); }
   });
 }
 
