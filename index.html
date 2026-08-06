@@ -109,6 +109,20 @@ table.st td.d{width:42%}
 #lab-stats details.ctl{margin:6px 0 14px}
 #lab-stats details.ctl summary{cursor:pointer;font-size:.86rem;opacity:.75;padding:4px 0}
 
+#lab-stats select{font:inherit;font-size:.9rem;color:var(--parchment,#e8dcc0);
+  background:rgba(255,255,255,.06);border:1px solid rgba(212,168,67,.32);border-radius:6px;padding:4px 8px}
+#lab-cpu-prog{display:block;height:100%;width:0;background:var(--gold,#d4a843);transition:width .1s linear}
+.cpu-card{border:1px solid rgba(212,168,67,.22);border-radius:10px;padding:14px 16px;margin:14px 0;
+  background:rgba(255,255,255,.025)}
+.cpu-h{font-family:'Cinzel',Georgia,serif;font-size:1.05rem;color:var(--gold,#d4a843);
+  display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.cpu-med{font-size:.85rem;color:var(--gold-bright,#f0c860);font-family:'Crimson Pro',Georgia,serif}
+.hist{display:flex;align-items:flex-end;gap:1px;height:90px;margin-top:10px}
+.hist i{flex:1;background:var(--gold,#d4a843);opacity:.55;border-radius:1px 1px 0 0;min-height:2px}
+.hist i.med{opacity:1;background:var(--gold-bright,#f0c860)}
+.hist-ax{display:flex;justify-content:space-between;font-size:.74rem;opacity:.55;margin-top:4px}
+.hist-ax .mid{color:var(--gold-bright,#f0c860);opacity:.9}
+
 #lab-flash{
   position:fixed;left:50%;top:46px;transform:translateX(-50%);z-index:7000;
   background:rgba(26,15,10,.94);border:1px solid var(--gold,#d4a843);border-radius:8px;
@@ -240,6 +254,23 @@ table.st td.d{width:42%}
     </div>
 
     <div id="lab-stats-body"></div>
+
+    <h1 style="margin-top:46px">Computers</h1>
+    <p class="lede">Each game is solitaire — no opponent yet. Take 8 cards, then every turn play
+      one card to a venture and draw one, until the draw pile empties. A computer discards only
+      when it cannot legally play anything, and never draws from the discards.</p>
+
+    <div class="ctrls">
+      <label>Computer <select id="lab-cpu-sel"></select></label>
+      <label>Games <input id="lab-cpu-n" type="number" min="1" max="200000" step="100" value="1000"></label>
+      <button id="lab-cpu-run" class="primary">Run games</button>
+      <button id="lab-cpu-stop" style="display:none">Stop</button>
+      <button id="lab-cpu-reset">Reset</button>
+      <span id="lab-cpu-count" class="count">0 games</span>
+      <span class="progwrap"><span id="lab-cpu-prog"></span></span>
+    </div>
+
+    <div id="lab-cpu-body"></div>
   </div>
 </div>
 
@@ -268,5 +299,6 @@ table.st td.d{width:42%}
 <!-- The lab: game loop, offline opponent, perfect information, potential. -->
 <script src="lab.js"></script>
 <script src="stats.js"></script>
+<script src="computers.js"></script>
 </body>
 </html>

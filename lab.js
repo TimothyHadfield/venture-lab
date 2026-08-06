@@ -281,23 +281,31 @@ function _labAITurn(){
    numbers yet.
    ========================================================================== */
 
+/* The rule itself, as a pure function of a pile and the cards still available
+   to it. Shared with the computers in computers.js, so "potential" means one
+   thing across the whole site and is defined in exactly one place. */
+function venturePotential(pile, pool){
+  const hasNumbers = pile.some(c => c.value > 0);
+  const topValue = hasNumbers ? pile[pile.length - 1].value : 0;
+
+  const additions = [];
+  if (!hasNumbers){                                    // wagers precede all numbers
+    for (const c of pool) if (c.value === 0) additions.push(c);
+  }
+  for (const c of pool) if (c.value > topValue) additions.push(c);
+  additions.sort((a, b) => a.value - b.value);
+
+  return MATH.scorePlayPile(pile.concat(additions));
+}
+
 function labColorPotential(slot, color){
   const pile = getCards(gameState, 'playPiles', slot, color);
-
   const pool = []
     .concat(getCards(gameState, 'drawPile'))
     .concat(getCards(gameState, 'hands', 'player1'))
     .concat(getCards(gameState, 'hands', 'player2'))
     .filter(c => c.color === color);
-
-  const hasNumbers = pile.some(c => c.value > 0);
-  const topValue = hasNumbers ? pile[pile.length - 1].value : 0;
-
-  const additions = [];
-  if (!hasNumbers) additions.push(...pool.filter(c => c.value === 0));      // wagers precede all numbers
-  additions.push(...pool.filter(c => c.value > topValue).sort((a,b) => a.value - b.value));
-
-  return MATH.scorePlayPile(pile.concat(additions));
+  return venturePotential(pile, pool);
 }
 
 /* --- render the potential row under each pile ---------------------------

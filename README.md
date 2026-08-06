@@ -91,6 +91,33 @@ Verified against theory — each colour count is a hypergeometric draw (30 from
 60, 12 per colour), and the simulated distribution matches the exact
 probabilities to within 0.3 percentage points at 20k trials.
 
+## Computers
+
+The statistics section also builds and tests computers. Each game is
+**solitaire** — no opponent. Take 8 cards, then every turn play one card to a
+venture and draw one, until the draw pile empties (52 turns, ending with 8 cards
+still in hand). A computer **discards only when it cannot legally play
+anything**, and never draws from the discards.
+
+| computer | strategy | median score |
+|---|---|---|
+| **Lowest** | plays the card that decreases that colour's potential the least | **73** |
+| **Random** | plays a uniformly random legal card | **12** |
+
+With no opponent, the cards still unseen are exactly deck + hand, so a computer
+can know that *set* (not its order) just by tracking what has been played and
+discarded. `potentialFor` uses only that, so nothing peeks at the deck order.
+
+"Play what costs the least potential" turns out to encode more than it looks:
+playing any number locks out every remaining wager of that colour, so a red 2
+onto an empty pile costs **102** while a red wager costs **0**. Wagers-first and
+play-low both fall out of the one rule rather than being written in.
+
+**Adding a computer** — add an entry to `COMPUTERS` in `computers.js` with a
+`decide(view)` returning `{ card }`. `view` gives the hand, piles, pool, the
+legally playable subset, and an rng; legality, drawing and scoring are handled
+for you.
+
 ## Layout of the code
 
 | path | what it is |
@@ -98,6 +125,7 @@ probabilities to within 0.3 percentage points at 20k trials.
 | `index.html` | the page: game-screen markup + the lab control bar |
 | `lab.js` | game loop, offline opponent, reveals, potential |
 | `stats.js` | the dealing-trials section |
+| `computers.js` | the computers and the solitaire game they're tested on |
 | `vendor/styles.css`, `vendor/src/*.js` | the live Venture client's presentation stack, unchanged apart from two lines |
 | `simple.html` | the earlier standalone Venture Lab (self-contained, own renderer) |
 
