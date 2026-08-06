@@ -17,9 +17,15 @@ permissions:
   pages: write
   id-token: write
 
+# A single "pages" group deadlocked: one run got stuck in `waiting` and could
+# not be cancelled (the API 502s on it), so every later deploy queued behind it
+# forever and was eventually cancelled — the new computer never reached the
+# site. Newest-wins instead. The github-pages environment already serialises
+# actual deployments, so this only supersedes queued builds, and these runs
+# take ~20s anyway.
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: pages-${{ github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
