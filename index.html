@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Venture Lab</title>
+<style>
+  :root{
+    --bg:#12100c; --panel:#1c1810; --panel2:#241f16; --line:#3a3121;
+    --gold:#c9a94a; --gold2:#e6cd7a; --ink:#ece2c8; --dim:#9a8c6a;
+    --red:#c0504d; --yellow:#d0a92b; --green:#4e8a55; --blue:#4a76b8; --white:#c9c4b6;
+    --good:#6ec97f; --bad:#cf7a6a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.4 ui-monospace,Menlo,Consolas,monospace}
+  a{color:var(--gold2)}
+  .wrap{max-width:1180px;margin:0 auto;padding:14px}
+  header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+  header h1{font:700 20px 'Cinzel',ui-monospace,serif;color:var(--gold2);margin:0;letter-spacing:1px}
+  header .sub{color:var(--dim)}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-left:auto}
+  select,button{font:600 13px ui-monospace,Consolas,monospace;color:var(--ink);
+    background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:6px 10px;cursor:pointer}
+  button:hover,select:hover{border-color:var(--gold)}
+  button.primary{background:var(--gold);color:#191307;border-color:var(--gold)}
+  .layout{display:grid;grid-template-columns:1fr 300px;gap:14px}
+  @media(max-width:900px){.layout{grid-template-columns:1fr}}
+  .board{display:flex;flex-direction:column;gap:10px}
+  .zone{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
+  .zone h2{font:700 12px ui-monospace,Consolas,monospace;color:var(--dim);margin:0 0 8px;
+    text-transform:uppercase;letter-spacing:1px;display:flex;justify-content:space-between;align-items:center}
+  .score{color:var(--gold2);font-weight:700}
+  .cols{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .col{background:var(--panel2);border:1px solid var(--line);border-radius:8px;min-height:56px;padding:5px;
+    display:flex;flex-direction:column;gap:3px;transition:box-shadow .12s,border-color .12s}
+  .col .cap{font:700 10px ui-monospace,Consolas,monospace;text-align:center;color:#0d0a05;
+    border-radius:4px;padding:1px 0;margin-bottom:2px}
+  .col.playable{cursor:pointer;box-shadow:inset 0 0 0 2px var(--gold);border-color:var(--gold)}
+  .col.dimmed{opacity:.5}
+  .col .colscore{font:700 10px monospace;text-align:center;color:var(--dim)}
+  .card{border-radius:5px;padding:2px 0;text-align:center;font:700 13px 'Cinzel',ui-monospace,serif;
+    color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.9);border:1px solid rgba(0,0,0,.35);position:relative}
+  .card.sm{font-size:11px;padding:1px 0}
+  .card.red{background:var(--red)} .card.yellow{background:var(--yellow)}
+  .card.green{background:var(--green)} .card.blue{background:var(--blue)} .card.white{background:var(--white);color:#2a2317;text-shadow:none}
+  .hand{display:flex;gap:6px;flex-wrap:wrap;min-height:52px}
+  .hand .card{width:44px;height:62px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;
+    transition:transform .1s,box-shadow .1s}
+  .hand .card:hover{transform:translateY(-4px)}
+  .hand .card.sel{transform:translateY(-8px);box-shadow:0 0 0 2px var(--gold2),0 6px 14px rgba(0,0,0,.5)}
+  .mid{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start}
+  .deck{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .deckpile{width:52px;height:70px;border-radius:8px;background:repeating-linear-gradient(45deg,#2c2416,#2c2416 6px,#342b1a 6px,#342b1a 12px);
+    border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font:700 20px monospace;color:var(--gold2);cursor:pointer}
+  .deckpile.drawable{box-shadow:0 0 0 2px var(--gold);border-color:var(--gold)}
+  .discards{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .dpile{min-height:70px;background:var(--panel2);border:1px dashed var(--line);border-radius:8px;padding:4px;
+    display:flex;flex-direction:column;gap:2px}
+  .dpile.drawable{cursor:pointer;box-shadow:inset 0 0 0 2px var(--gold);border-style:solid;border-color:var(--gold)}
+  .dpile.blocked{opacity:.4}
+  .dpile .card{width:100%}
+  .status{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:38px}
+  .status b{color:var(--gold2)}
+  .side .zone{margin-bottom:12px}
+  .prob-row{display:flex;align-items:center;gap:6px;margin:3px 0}
+  .prob-lab{width:52px;font:700 10px monospace;text-align:center;border-radius:4px;color:#0d0a05;padding:1px 0}
+  .bar{flex:1;height:12px;background:#0d0a05;border-radius:6px;overflow:hidden}
+  .bar>span{display:block;height:100%}
+  .prob-n{width:58px;text-align:right;color:var(--dim);font-size:11px}
+  .tiny{color:var(--dim);font-size:11px;line-height:1.5}
+  .log{max-height:150px;overflow:auto;font-size:11px;color:var(--dim)}
+  .log div{padding:1px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+  .winbanner{background:linear-gradient(180deg,#2a2413,#1c1810);border:1px solid var(--gold);border-radius:10px;
+    padding:12px;text-align:center;margin-bottom:10px}
+  .winbanner b{color:var(--gold2);font-size:18px}
+  kbd{background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:0 5px;font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>⚄ VENTURE LAB</h1>
+    <span class="sub">a sandbox for probability · computers · strategy</span>
+    <div class="controls">
+      <select id="mode">
+        <option value="ai">You vs Computer</option>
+        <option value="hotseat">2-Player Hotseat</option>
+      </select>
+      <select id="diff">
+        <option value="random">AI: Casual</option>
+        <option value="greedy" selected>AI: Solid</option>
+        <option value="look">AI: Sharp</option>
+      </select>
+      <button id="newgame" class="primary">New Game</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="board">
+      <div id="banner"></div>
+
+      <div class="zone">
+        <h2><span id="oppName">Computer</span> <span class="score" id="oppScore">0</span></h2>
+        <div class="cols" id="oppPlay"></div>
+        <div class="tiny" id="oppHandInfo" style="margin-top:6px"></div>
+      </div>
+
+      <div class="zone">
+        <h2>Table</h2>
+        <div class="mid">
+          <div class="deck">
+            <div class="deckpile" id="deck" title="Draw pile">?</div>
+            <div class="tiny" id="deckN">— left</div>
+          </div>
+          <div>
+            <div class="tiny" style="margin-bottom:4px">Discard piles — click a card's colour to discard there; draw from a pile's top on your draw</div>
+            <div class="discards" id="discards"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="zone">
+        <h2><span id="youName">You</span> <span class="score" id="youScore">0</span></h2>
+        <div class="cols" id="youPlay"></div>
+      </div>
+
+      <div class="status" id="status">Press <b>New Game</b> to begin.</div>
+
+      <div class="zone">
+        <h2><span id="handOwner">Your</span> hand</h2>
+        <div class="hand" id="hand"></div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="zone">
+        <h2>Probability</h2>
+        <div class="tiny" style="margin-bottom:6px">What's still unseen — cards in the deck plus the opponent's hand (you can't see which is which).</div>
+        <div id="probColors"></div>
+        <div class="tiny" id="probMeta" style="margin-top:8px"></div>
+      </div>
+      <div class="zone">
+        <h2>How to play</h2>
+        <div class="tiny">
+          Build <b>ventures</b>: ascending runs of one colour in your play area.
+          Wagers (<b>×2</b>) must come <i>before</i> any numbers and multiply that venture.<br><br>
+          A venture scores <b>(sum of numbers − 20) × (1 + wagers)</b>, plus <b>+20</b> if it reaches 8 cards.
+          The −20 is the cost of starting — short ventures lose points.<br><br>
+          <b>Your turn:</b> ① play one card to a venture, or discard it · ② draw from the deck or a discard-pile top
+          (not the pile you just discarded to).<br><br>
+          The game ends when the <b>draw pile empties</b>. Highest total wins.
+        </div>
+      </div>
+      <div class="zone">
+        <h2>Log</h2>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ===== Venture Lab — a standalone, offline Venture game =====
+   No online play, no accounts. Pure client-side. Built to tinker with:
+   the AI (see policies below), the scoring, and the probability panel. */
+
+const COLORS = ['red','yellow','green','blue','white'];
+const COLOR_LABEL = {red:'RED',yellow:'YEL',green:'GRN',blue:'BLU',white:'WHT'};
+const HAND_SIZE = 8, WAGERS = 3, MIN=2, MAX=10, BONUS_AT=8, START_COST=20, BONUS=20;
+
+let G = null;           // game state
+let sel = null;         // selected hand card id
+let busy = false;       // lock during AI turns / animations
+
+/* ---------- deck & rules ---------- */
+function allCards(){
+  const out=[]; let id=0;
+  for(const c of COLORS){
+    for(let i=0;i<WAGERS;i++) out.push({id:id++,color:c,value:0});
+    for(let v=MIN;v<=MAX;v++) out.push({id:id++,color:c,value:v});
+  }
+  return out;
+}
+function shuffle(a){
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function canPlay(card, pile){
+  if(!pile.length) return true;
+  const top=pile[pile.length-1];
+  if(card.value===0) return top.value===0;      // wagers only onto wagers/empty
+  return card.value>top.value;                  // numbers must ascend
+}
+function pileScore(pile){
+  if(!pile.length) return 0;
+  let w=0,sum=0;
+  for(const c of pile){ if(c.value===0) w++; else sum+=c.value; }
+  return (sum-START_COST)*(1+w) + (pile.length>=BONUS_AT?BONUS:0);
+}
+function totalScore(who){
+  return COLORS.reduce((t,c)=>t+pileScore(G.play[who][c]),0);
+}
+
+/* ---------- game setup ---------- */
+function newGame(){
+  const mode=document.getElementById('mode').value;
+  const deck=shuffle(allCards());
+  const hands={p1:deck.splice(0,HAND_SIZE), p2:deck.splice(0,HAND_SIZE)};
+  const piles=()=>{const o={};COLORS.forEach(c=>o[c]=[]);return o;};
+  G={
+    mode, drawPile:deck,
+    hands, play:{p1:piles(),p2:piles()}, discard:piles(),
+    turn: Math.random()<0.5?'p1':'p2', phase:'play', lastDiscard:null, over:false,
+    log:[]
+  };
+  sel=null; busy=false;
+  document.getElementById('banner').innerHTML='';
+  logMsg((G.turn==='p1'?'You':oppLabel())+' to start.');
+  render();
+  maybeAI();
+}
+
+function oppLabel(){ return G.mode==='hotseat'?'Player 2':'Computer'; }
+function meLabel(){ return G.mode==='hotseat'?'Player 1':'You'; }
+function humanTurn(){ return G.mode==='hotseat' || G.turn==='p1'; }
+
+/* ---------- moves ---------- */
+function playCard(who, cardId, color){
+  const hand=G.hands[who];
+  const idx=hand.findIndex(c=>c.id===cardId);
+  if(idx<0) return false;
+  const card=hand[idx];
+  if(card.color!==color) return false;
+  if(!canPlay(card, G.play[who][color])) return false;
+  hand.splice(idx,1);
+  G.play[who][color].push(card);
+  G.phase='draw'; G.lastDiscard=null;
+  logMsg(nameOf(who)+' plays '+cardStr(card)+'.');
+  return true;
+}
+function discardCard(who, cardId){
+  const hand=G.hands[who];
+  const idx=hand.findIndex(c=>c.id===cardId);
+  if(idx<0) return false;
+  const card=hand[idx];
+  hand.splice(idx,1);
+  G.discard[card.color].push(card);
+  G.phase='draw'; G.lastDiscard=card.color;
+  logMsg(nameOf(who)+' discards '+cardStr(card)+'.');
+  return true;
+}
+function drawDeck(who){
+  if(!G.drawPile.length) return false;
+  const card=G.drawPile.pop();
+  G.hands[who].push(card);
+  endTurn(who);
+  return true;
+}
+function drawDiscard(who, color){
+  const pile=G.discard[color];
+  if(!pile.length || G.lastDiscard===color) return false;
+  const card=pile.pop();
+  G.hands[who].push(card);
+  logMsg(nameOf(who)+' takes '+cardStr(card)+' from discards.');
+  endTurn(who);
+  return true;
+}
+function endTurn(who){
+  if(!G.drawPile.length){ finish(); return; }   // deck empty ⇒ game over
+  G.turn = who==='p1'?'p2':'p1';
+  G.phase='play'; G.lastDiscard=null;
+}
+function finish(){
+  G.over=true;
+  const s1=totalScore('p1'), s2=totalScore('p2');
+  const b=document.getElementById('banner');
+  let msg;
+  if(s1>s2) msg = meLabel()+' win '+s1+' – '+s2;
+  else if(s2>s1) msg = oppLabel()+' win '+s2+' – '+s1;
+  else msg = 'Tie, '+s1+' – '+s2;
+  b.innerHTML='<div class="winbanner"><b>'+msg+'</b><br><span class="tiny">Press New Game to play again.</span></div>';
+  logMsg('Game over — '+msg+'.');
+}
+
+function nameOf(who){ return who==='p1'?meLabel():oppLabel(); }
+function cardStr(c){ return COLOR_LABEL[c.color]+' '+(c.value===0?'×2':c.value); }
+
+/* ---------- AI ---------- */
+function aiPlayValue(who, card){
+  const pile=G.play[who][card.color];
+  return pileScore(pile.concat([card])) - pileScore(pile);
+}
+// how many of a colour we still hold or are likely to reach (hand only, simple)
+function reach(who,color){ return G.hands[who].filter(c=>c.color===color).length; }
+
+function aiMove(who, diff){
+  // returns {kind:'play'|'discard', cardId, color} for play phase,
+  //         {kind:'draw', source:'deck'|'discard', color?} for draw phase
+  if(G.phase==='play'){
+    const hand=G.hands[who];
+    if(diff==='random'){
+      // play a random legal play if any, else discard a random card
+      const legal=[];
+      hand.forEach(c=>{ if(canPlay(c,G.play[who][c.color])) legal.push(c); });
+      if(legal.length && Math.random()<0.7){ const c=legal[Math.floor(Math.random()*legal.length)]; return {kind:'play',cardId:c.id,color:c.color}; }
+      const c=hand[Math.floor(Math.random()*hand.length)]; return {kind:'discard',cardId:c.id};
+    }
+    // greedy / look: continue a started venture, or open one we can fill; else dump junk
+    let best=null,bk=-1e9;
+    for(const c of hand){
+      if(!canPlay(c,G.play[who][c.color])) continue;
+      const started=G.play[who][c.color].length>0;
+      let k;
+      if(started) k=1000 - c.value;                       // keep filling, lowest first
+      else{
+        const r=reach(who,c.color);
+        if(r<3 && c.value!==0) continue;                  // too thin to clear the -20 alone
+        k=500 + r*10 - c.value;
+      }
+      if(diff==='look') k += aiPlayValue(who,c)*0.2;      // sharper: nudge by immediate value
+      if(k>bk){bk=k;best=c;}
+    }
+    if(best) return {kind:'play',cardId:best.id,color:best.color};
+    // nothing worth playing → discard the lowest card of an unstarted colour
+    let d=null,dk=1e9;
+    for(const c of hand){
+      const started=G.play[who][c.color].length?1000:0;
+      const k=started+c.value;
+      if(k<dk){dk=k;d=c;}
+    }
+    return {kind:'discard',cardId:(d||hand[0]).id};
+  }
+  // draw phase: take a discard top only if it plays now; else the deck
+  for(const color of COLORS){
+    if(color===G.lastDiscard) continue;
+    const pile=G.discard[color];
+    if(!pile.length) continue;
+    const card=pile[pile.length-1];
+    if(canPlay(card,G.play[who][card.color])) return {kind:'draw',source:'discard',color};
+  }
+  return {kind:'draw',source:'deck'};
+}
+
+function maybeAI(){
+  if(!G || G.over || G.mode==='hotseat') return;
+  if(G.turn!=='p2') return;
+  busy=true; render();
+  setTimeout(()=>{
+    const diff=document.getElementById('diff').value;
+    const mv=aiMove('p2',diff);
+    applyAI(mv);
+    render();
+    // draw phase follows the play in a separate beat
+    if(!G.over && G.turn==='p2'){
+      setTimeout(()=>{ const mv2=aiMove('p2',diff); applyAI(mv2); busy=false; render(); maybeAI(); }, 420);
+    } else { busy=false; render(); }
+  }, 420);
+}
+function applyAI(mv){
+  if(mv.kind==='play') playCard('p2',mv.cardId,mv.color);
+  else if(mv.kind==='discard') discardCard('p2',mv.cardId);
+  else if(mv.source==='deck') drawDeck('p2');
+  else drawDiscard('p2',mv.color);
+}
+
+/* ---------- probability panel ---------- */
+function unseen(){
+  // cards not visible to the acting human: deck + opponent hand (in AI mode).
+  // In hotseat we treat the current player's unknowns the same way.
+  const seen=new Set();
+  const me = G.turn;                 // whoever is to move
+  G.hands[me].forEach(c=>seen.add(c.id));
+  COLORS.forEach(c=>{
+    G.play.p1[c].forEach(x=>seen.add(x.id));
+    G.play.p2[c].forEach(x=>seen.add(x.id));
+    G.discard[c].forEach(x=>seen.add(x.id));
+  });
+  return allCards().filter(c=>!seen.has(c.id));
+}
+function renderProb(){
+  const host=document.getElementById('probColors');
+  if(!G){ host.innerHTML=''; document.getElementById('probMeta').textContent=''; return; }
+  const un=unseen();
+  const byColor={}; COLORS.forEach(c=>byColor[c]=0);
+  un.forEach(c=>byColor[c.color]++);
+  const maxPer=WAGERS+(MAX-MIN+1);        // 12 per colour
+  host.innerHTML='';
+  COLORS.forEach(c=>{
+    const n=byColor[c], pct=Math.round(100*n/maxPer);
+    const row=document.createElement('div'); row.className='prob-row';
+    row.innerHTML='<span class="prob-lab card '+c+'" style="text-shadow:none">'+COLOR_LABEL[c]+'</span>'+
+      '<span class="bar"><span style="width:'+pct+'%;background:var(--'+c+')"></span></span>'+
+      '<span class="prob-n">'+n+'/'+maxPer+'</span>';
+    host.appendChild(row);
+  });
+  const deckN=G.drawPile.length, oppN=G.mode==='ai'?G.hands.p2.length:0;
+  const meta=document.getElementById('probMeta');
+  const nextP = deckN>0 ? (1/COLORS.length) : 0;
+  meta.innerHTML = un.length+' cards unseen · '+deckN+' in the deck'+
+    (G.mode==='ai'? ' · '+oppN+' in the opponent\'s hand':'')+
+    '.<br>Any single unseen card is equally likely to be next from the deck.';
+}
+
+/* ---------- rendering ---------- */
+function colCard(c,sm){
+  return '<div class="card '+c.color+(sm?' sm':'')+'">'+(c.value===0?'×2':c.value)+'</div>';
+}
+function renderPlayArea(hostId, who){
+  const host=document.getElementById(hostId);
+  host.innerHTML='';
+  const myTurnPlay = !busy && !G.over && G.turn===who && G.phase==='play' && (who==='p1'? true : G.mode==='hotseat');
+  const selCard = sel!=null ? G.hands[who].find(c=>c.id===sel) : null;
+  COLORS.forEach(color=>{
+    const pile=G.play[who][color];
+    const div=document.createElement('div'); div.className='col';
+    let inner='<div class="cap card '+color+'" style="text-shadow:none">'+COLOR_LABEL[color]+'</div>';
+    pile.forEach(c=>inner+=colCard(c,true));
+    const sc=pileScore(pile);
+    inner+='<div class="colscore">'+(pile.length?(sc>=0?'+':'')+sc:'—')+'</div>';
+    div.innerHTML=inner;
+    if(myTurnPlay && selCard && selCard.color===color && canPlay(selCard,pile)){
+      div.classList.add('playable');
+      div.onclick=()=>{ doHumanPlay(who,color); };
+    } else if(myTurnPlay && selCard){ div.classList.add('dimmed'); }
+    host.appendChild(div);
+  });
+}
+function renderDiscards(){
+  const host=document.getElementById('discards'); host.innerHTML='';
+  const who=G.turn;
+  const canDiscardHere = !busy && !G.over && G.phase==='play' && sel!=null && humanTurn();
+  const canDrawHere = !busy && !G.over && G.phase==='draw' && humanTurn();
+  const selCard = sel!=null ? G.hands[who].find(c=>c.id===sel) : null;
+  COLORS.forEach(color=>{
+    const pile=G.discard[color];
+    const div=document.createElement('div'); div.className='dpile';
+    let inner='<div class="cap card '+color+'" style="text-shadow:none;color:#0d0a05">'+COLOR_LABEL[color]+'</div>';
+    if(pile.length) inner+=colCard(pile[pile.length-1],false);
+    else inner+='<div class="tiny" style="text-align:center;color:var(--dim)">empty</div>';
+    div.innerHTML=inner;
+    // discard target: selected card must be this colour
+    if(canDiscardHere && selCard && selCard.color===color){
+      div.classList.add('drawable'); div.onclick=()=>doHumanDiscard(who,color);
+    }
+    // draw source: non-empty, not the pile just discarded to
+    else if(canDrawHere && pile.length && G.lastDiscard!==color){
+      div.classList.add('drawable'); div.onclick=()=>doHumanDrawDiscard(who,color);
+    }
+    else if(canDrawHere && G.lastDiscard===color){ div.classList.add('blocked'); }
+    host.appendChild(div);
+  });
+}
+function renderHand(){
+  const host=document.getElementById('hand'); host.innerHTML='';
+  const who=G.turn;
+  const showHand = humanTurn() && !G.over;
+  document.getElementById('handOwner').textContent = G.mode==='hotseat'?(who==='p1'?"Player 1's":"Player 2's"):'Your';
+  const hand = showHand ? G.hands[who] : [];
+  const sorted = hand.slice().sort((a,b)=> a.color===b.color? a.value-b.value : COLORS.indexOf(a.color)-COLORS.indexOf(b.color));
+  sorted.forEach(c=>{
+    const el=document.createElement('div');
+    el.className='card '+c.color+(sel===c.id?' sel':'');
+    el.textContent = c.value===0?'×2':c.value;
+    if(!busy && G.phase==='play' && G.turn===who && humanTurn()){
+      el.onclick=()=>{ sel = (sel===c.id? null : c.id); render(); };
+    } else el.style.cursor='default';
+    host.appendChild(el);
+  });
+  if(!hand.length && !G.over){
+    host.innerHTML='<div class="tiny">'+(G.phase==='draw'?'Draw a card to end the turn.':'(hand shown on your turn)')+'</div>';
+  }
+}
+function renderStatus(){
+  const s=document.getElementById('status');
+  if(!G){ s.innerHTML='Press <b>New Game</b> to begin.'; return; }
+  if(G.over){ s.innerHTML='<b>Game over.</b> Press New Game.'; return; }
+  const who=G.turn;
+  if(busy){ s.innerHTML='<b>'+oppLabel()+'</b> is thinking…'; return; }
+  const actor = G.mode==='hotseat'? (who==='p1'?'Player 1':'Player 2') : (who==='p1'?'You':'Computer');
+  if(!humanTurn()){ s.innerHTML='<b>'+actor+"'s</b> turn."; return; }
+  if(G.phase==='play'){
+    s.innerHTML = '<b>'+actor+':</b> '+(sel==null
+      ? 'select a card, then click a venture to play it or a discard pile to drop it.'
+      : 'now click a matching venture to play, or the matching discard pile to discard.');
+  } else {
+    s.innerHTML = '<b>'+actor+':</b> draw — click the <b>deck</b> or an eligible discard-pile top.';
+  }
+}
+function render(){
+  if(!G) return;
+  document.getElementById('oppName').textContent=oppLabel();
+  document.getElementById('youName').textContent=meLabel();
+  document.getElementById('youScore').textContent=totalScore('p1');
+  document.getElementById('oppScore').textContent=totalScore('p2');
+  renderPlayArea('oppPlay','p2');
+  renderPlayArea('youPlay','p1');
+  // opponent hand info
+  const oi=document.getElementById('oppHandInfo');
+  oi.textContent = (G.mode==='ai'? 'Computer' : 'Player 2')+' holds '+G.hands.p2.length+' card'+(G.hands.p2.length===1?'':'s')+'.';
+  // deck
+  document.getElementById('deck').textContent=G.drawPile.length;
+  document.getElementById('deckN').textContent=G.drawPile.length+' left';
+  const deckEl=document.getElementById('deck');
+  deckEl.classList.toggle('drawable', !busy && !G.over && G.phase==='draw' && humanTurn() && G.drawPile.length>0);
+  deckEl.onclick = (!busy && !G.over && G.phase==='draw' && humanTurn())? ()=>doHumanDrawDeck(G.turn) : null;
+  renderDiscards();
+  renderHand();
+  renderStatus();
+  renderProb();
+  renderLog();
+}
+
+/* ---------- human actions ---------- */
+function afterHumanMove(){
+  sel=null; render();
+  if(!G.over) maybeAI();
+}
+function doHumanPlay(who,color){ if(playCard(who,sel,color)) afterHumanMove(); }
+function doHumanDiscard(who,color){ if(discardCard(who,sel)) afterHumanMove(); }
+function doHumanDrawDeck(who){ if(drawDeck(who)){ sel=null; render(); if(!G.over) maybeAI(); } }
+function doHumanDrawDiscard(who,color){ if(drawDiscard(who,color)){ sel=null; render(); if(!G.over) maybeAI(); } }
+
+/* ---------- log ---------- */
+function logMsg(m){ if(G){ G.log.unshift(m); if(G.log.length>60) G.log.pop(); } }
+function renderLog(){
+  const host=document.getElementById('log'); if(!G) return;
+  host.innerHTML=G.log.map(m=>'<div>'+m+'</div>').join('');
+}
+
+/* ---------- wire up ---------- */
+document.getElementById('newgame').onclick=newGame;
+document.getElementById('mode').onchange=()=>{ /* takes effect next New Game */ };
+newGame();
+</script>
+</body>
+</html>
