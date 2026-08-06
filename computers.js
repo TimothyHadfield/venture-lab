@@ -128,6 +128,27 @@ const COMPUTERS = {
     },
   },
 
+  wageropen4: {
+    name: 'Wager Open 4',
+    blurb: 'Wager Open, but it never spreads across every colour — once 4 ventures ' +
+           'are running it will not start a 5th, whatever it draws. Every venture ' +
+           'costs 20 up front, so leaving one colour alone saves that 20 and puts ' +
+           'the same cards into fewer, longer ventures.',
+    decide(view){
+      // "Stops at 4" = one short of the full spread, derived from the colour
+      // count rather than hard-coded, so it still means "all but one" if the
+      // venture count is ever changed to 4 or 6.
+      const maxOpen = CONFIG.colors.length - 1;
+      return _lowestGated(view, c => {
+        if (view.piles[c.color].length > 0) return true;   // already running
+        if (c.value !== 0) return false;                   // open only on a wager
+        let open = 0;
+        for (const col of CONFIG.colors) if (view.piles[col].length > 0) open++;
+        return open < maxOpen;
+      });
+    },
+  },
+
   random: {
     name: 'Random',
     blurb: 'Plays a uniformly random legal card. When nothing is playable it ' +

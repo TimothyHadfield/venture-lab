@@ -109,9 +109,10 @@ anything**, and never draws from the discards.
 | **Lowest** | plays the card that decreases that colour's potential the least | **73** | 13% |
 | **Lowest 3+** | Lowest, but won't *open* a colour unless holding 3+ of it | **70** | 11% |
 | **Wager Open** | Lowest, but a colour can only be *started* with a wager | **98** | 29% |
+| **Wager Open 4** | Wager Open, but never opens a 5th colour — stops at 4 | **56** | 8% |
 | **Random** | plays a uniformly random legal card | **12** | 1% |
 
-Medians over 3,000 identical deals played by all four. **8+ bonus** is the
+Medians over 3,000 identical deals played by all five. **8+ bonus** is the
 share of games landing at least one venture of 8+ cards, worth +20 each.
 
 **Wager Open is far the strongest — +21.4 ± 0.7 over Lowest head to head on the
@@ -122,6 +123,14 @@ colour it opens with a number anyway and forfeits all three of that colour's
 wagers permanently. Wager Open never makes that trade. It still gets all five
 colours open in a typical game, so the restriction costs it almost no tempo —
 and it actually discards *less* than Lowest (49% of turns vs 52%).
+
+**Capping at 4 colours is a disaster — −43.0 ± 0.6 against Wager Open**, which
+wins 96% of deals head to head. The −20 an extra venture costs is trivial next
+to what a colour yields, and refusing to open one strands every card of it:
+the discard rate jumps from 49% to 62%. Venture length is capped by the
+ascending rule, not by how many colours you have running, so a 5th venture
+takes nothing away from the other four — its 8+ bonus rate *falls* (8% vs 29%)
+rather than rising.
 
 **The 3+ gate, by contrast, makes things slightly worse**: plain Lowest beats it
 by **4.9 ± 0.6**. Refusing to open a thin colour costs tempo without buying much
