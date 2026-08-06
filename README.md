@@ -1,15 +1,13 @@
 # Venture Lab
 
 A **perfect-information Venture board** for studying positions: the real game's
-board, with the draw pile and the opponent's hand face-up, plus a per-colour
-**potential** readout under every pile.
+board, with the whole draw pile laid out as colour columns, the opponent's hand
+face-up, and a per-colour **potential** readout under every pile.
 
 Open `index.html` in a browser. No build step, no accounts, no network.
 
-> ⚠️ **Not published.** This version vendors the live Venture client's own
-> presentation code (see below), so it is a local study tool. Deploying it to
-> the public GitHub Pages site would republish that code — decide that
-> deliberately before pushing.
+> ⚠️ This vendors the live Venture client's own presentation code (see below).
+> The repo is public and deployed, so that code is republished here.
 
 ## What's on screen
 
@@ -60,7 +58,7 @@ Reading it:
 |---|---|
 | `index.html` | the page: game-screen markup + the lab control bar |
 | `lab.js` | **the only original code** — game loop, offline opponent, reveals, potential |
-| `vendor/styles.css`, `vendor/src/*.js` | the live Venture client's presentation stack, unchanged apart from four lines |
+| `vendor/styles.css`, `vendor/src/*.js` | the live Venture client's presentation stack, unchanged apart from two lines |
 | `simple.html` | the earlier standalone Venture Lab (self-contained, own renderer) |
 
 `lab.js` supplies what the vendored stack used to get from Firebase,
@@ -76,7 +74,7 @@ All marked `LAB PATCH`, all no-ops when `LAB` is undefined:
 - `layout.js` — subtract the lab bar's height and the deck panel's width from
   the viewport the board solves against
 
-Re-vendoring from the live site means re-applying these four.
+Re-vendoring from the live site means re-applying these two.
 
 ## The game
 
