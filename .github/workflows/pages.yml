@@ -1,0 +1,37 @@
+# Deploy the static site to GitHub Pages.
+#
+# The legacy Pages builder started failing with an undiagnosable "Page build
+# failed" (duration 0) and pinned the live site to an old commit. Nothing here
+# needs building — it is plain HTML/CSS/JS — so this uploads the repo as-is and
+# deploys it, and any future failure shows up in the Actions log instead of a
+# one-line API status.
+name: Deploy Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+      - id: deployment
+        uses: actions/deploy-pages@v4
