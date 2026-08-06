@@ -157,3 +157,15 @@ Build **ventures** — ascending runs of a single colour. Wagers (`×2`) must co
 
 The opponent is a local heuristic (Casual / Solid / Sharp) — deliberately not
 the real bot, since the point here is studying positions.
+
+## Deploying
+
+Pages is built by `.github/workflows/pages.yml` (Actions), not the legacy
+builder — the legacy one failed opaquely and pinned the site to a stale commit.
+
+If a push does not appear on the site, check whether a run actually started:
+
+```
+gh run list --limit 3
+gh workflow run "Deploy Pages" --ref main     # trigger it by hand
+```
