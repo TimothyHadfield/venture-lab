@@ -279,20 +279,26 @@ function _labAITurn(){
    player received EVERY card still REACHABLE BY THEM that could legally be
    added to it.
 
-   Reachable, for that player = the draw pile + their OWN hand + the colour's
-   discard pile. Two exclusions, for two different reasons:
+   Reachable, for that player = the draw pile + their OWN hand + the ONE
+   discard-pile card they could actually take. Three exclusions, for three
+   different reasons:
 
      - **Played cards are gone.** Either side's play pile is permanent.
      - **The opponent's hand is out of reach.** You cannot draw a card someone
        else is holding. It may come back into play later — they might discard
        it — but from where the position stands now it is not yours to get, and
        counting it inflates your ceiling with their cards.
+     - **A discard pile gives up only its TOP card, and only if that card was
+       already there when your turn began.** Buried cards are not yours to take:
+       reaching them means the opponent digs the pile down for you, which is not
+       a plan. And a card you have just thrown away is not a card you have —
+       the game forbids drawing from the pile you just discarded to, so it stops
+       counting the moment you discard it and counts again at the start of your
+       next turn IF it is still sitting there.
 
-   Discards DO count: a discard pile is a real source (drawing its top is half
-   the game's turn), and cards buried under the top become reachable as the
-   pile is drawn down. It is a generous assumption, but generosity is what a
-   ceiling is for — the number answers "how far could this colour possibly go
-   for me", not "how far will it".
+   That last rule is what makes a discard a real cost rather than a shrug: throw
+   a card and you watch the colour's number drop, then watch it come back if the
+   opponent leaves it alone.
 
    So the two numbers under a colour are now genuinely per player: each counts
    its own holder's hand and neither counts the other's.
@@ -572,8 +578,50 @@ function _labPoolOf(slot, color){
   return []
     .concat(getCards(gameState, 'drawPile'))
     .concat(getCards(gameState, 'hands', slot))
-    .concat(getCards(gameState, 'discards', color))
+    .concat(_labTakeableDiscard(slot, color))
     .filter(c => c.color === color);
+}
+
+/* ── the takeable discard ───────────────────────────────────────────────────
+   The top of a colour's discard pile, and only if it is the SAME card that was
+   on top when this player's turn began. Everything under the top is out of
+   reach, and a card you discarded during your own turn is not yours until the
+   turn comes round again.
+
+   Implemented as a snapshot per player rather than from the engine's
+   `lastDiscardTarget`, which cannot answer this: it is one shared field that
+   the engine clears the moment the turn passes (engine.js `_finishDraw`), so
+   the instant the opponent starts playing it can no longer tell you what YOU
+   threw. "What was on top when my turn started" needs its own memory. */
+const _labTurnTop = {};                    // slot → { colour: card id at turn start }
+
+function _labTakeableDiscard(slot, color){
+  const pile = getCards(gameState, 'discards', color);
+  if (!pile.length) return [];
+  const top = pile[pile.length - 1];
+  const snap = _labTurnTop[slot];
+  return (snap && snap[color] === top.id) ? [top] : [];
+}
+
+/* Called before every render. The snapshot is retaken only when the turn
+   actually changes hands, which is exactly "the start of your turn" — renders
+   inside a turn must not refresh it, or discarding would never cost anything. */
+let _labTurnSeen = null;
+function _labRefreshTurnSnapshot(){
+  if (!gameState || !gameState.discards) return;
+  if (gameState.currentTurn === _labTurnSeen) return;
+  _labTurnSeen = gameState.currentTurn;
+  const snap = {};
+  for (const c of CONFIG.colors){
+    const pile = getCards(gameState, 'discards', c);
+    snap[c] = pile.length ? pile[pile.length - 1].id : null;
+  }
+  _labTurnTop[gameState.currentTurn] = snap;
+}
+
+function _labResetTurnSnapshot(){
+  _labTurnSeen = null;
+  for (const k of Object.keys(_labTurnTop)) delete _labTurnTop[k];
 }
 
 /* ============================================================================
@@ -639,6 +687,7 @@ function _labHookHandOrder(){
   };
   const original = renderGame;
   renderGame = function(){
+    _labRefreshTurnSnapshot();     // first: the hand order is ranked by potential
     _labSortHands();
     return original.apply(this, arguments);
   };
@@ -1029,6 +1078,7 @@ function newLabGame(){
 
   gameState = ENGINE.initGame(variant, false);
   gameState.currentTurn = Math.random() < 0.5 ? 'player1' : 'player2';
+  _labResetTurnSnapshot();            // last game's discard tops mean nothing now
 
   createCardPool();
   document.getElementById('lab-result').classList.remove('on');

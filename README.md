@@ -156,8 +156,9 @@ For one colour and one player: **the score that pile would reach if that player
 received every card still reachable *by them* that could legally be added to
 it.**
 
-Reachable, for that player, means the draw pile, **their own hand**, and the
-colour's **discard pile**. Two things are excluded, for two different reasons:
+Reachable, for that player, means the draw pile, **their own hand**, and the one
+**discard-pile card they could actually take**. Three things are excluded, for
+three different reasons:
 
 - **Cards already played** are gone for good — either side's play pile is
   permanent.
@@ -165,10 +166,18 @@ colour's **discard pile**. Two things are excluded, for two different reasons:
   someone else is holding. It may come back later (they might discard it), but
   as the position stands it is not yours to get, and counting it would pad your
   ceiling with their cards.
+- **Everything in a discard pile below the top**, and the top itself unless it
+  was already there when your turn began. Buried cards are not yours to take —
+  reaching them means the opponent digs the pile down for you, which is not a
+  plan. And a card you just threw away is not a card you have: the rules forbid
+  drawing from the pile you just discarded to, so it stops counting the moment
+  you discard it, and counts again at the start of your **next** turn if it is
+  still sitting there.
 
-Discards *do* count. A discard pile is a real source — drawing its top is half
-of the game's turn — and cards buried under the top become reachable as the pile
-is drawn down. That is a generous assumption, which is what a ceiling is for.
+That last rule is what makes a discard a visible cost rather than a shrug: throw
+a card and watch the colour's number drop, then watch it come back if the
+opponent leaves it alone. Each player is judged by their own clock — during
+their turn, a card you discarded is already available to *them*.
 
 So the two numbers under a colour are genuinely per player: each counts its own
 holder's hand, neither counts the other's. They will differ from the opening
@@ -190,6 +199,10 @@ Reading it:
 - **A card moving from their hand to a discard pile RAISES your potential** —
   it went from unreachable to reachable. That is the readout working, not a
   glitch, and it is worth watching: it is the moment a colour opens up for you.
+- **Your own discard LOWERS it, and the drop is temporary.** The card leaves
+  your reach for one turn and returns at the start of your next one if the
+  opponent has not taken or buried it. Watching that number come back is the
+  cheapest way to see who is competing for a colour.
 - It is a **ceiling, not a forecast** — it assumes that player gets every
   card still reachable to them, which never happens. Both players can show a
   high number for the same colour; they are competing for the same cards.
