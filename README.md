@@ -4,6 +4,10 @@ A **perfect-information Venture board** for studying positions: the real game's
 board, with the whole draw pile laid out as colour columns, the opponent's hand
 face-up, and a per-colour **potential** readout under every pile.
 
+> Picking this up fresh? Read **[PROGRESS.md](PROGRESS.md)** first — it is the
+> state of play, the working rules, and what to do next. This file is the
+> reference for how everything works.
+
 Open `index.html` in a browser. No build step, no accounts, no network.
 
 > ⚠️ This vendors the live Venture client's own presentation code (see below).
@@ -521,6 +525,8 @@ for card in hand:
 | `computers.js` | the computers and the solitaire game they're tested on |
 | `builder.js` | the build-a-computer language and its page |
 | `STRATEGY.md` | survey of Lost Cities strategy writing, and a menu of ideas from it |
+| `PROGRESS.md` | handoff: state of play, working rules, what to pick up next |
+| `test/` | headless checks and measurement scripts — `node test/run-all.js` |
 | `vendor/styles.css`, `vendor/src/*.js` | the live Venture client's presentation stack, unchanged apart from two lines |
 | `simple.html` | the earlier standalone Venture Lab (self-contained, own renderer) |
 
