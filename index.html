@@ -191,6 +191,7 @@ table.st tr.tot td.g{font-weight:700;color:var(--gold,#d4a843)}
   <button id="lab-opp" title="Opponent's hand face-up">Opponent hand</button>
   <button id="lab-pot" title="Per-colour potential under each pile">Potential</button>
   <button id="lab-assist" title="Assistant — greys out the cards the ascending rule says to hold back">Assistant</button>
+  <button id="lab-pick" title="Pick draw — on your draw, click any card in the deck panel to draw that one">Pick draw</button>
   <button id="lab-statsbtn" title="Dealing statistics">Statistics</button>
 </div>
 <div id="game-screen" class="screen active">
@@ -265,7 +266,11 @@ table.st tr.tot td.g{font-weight:700;color:var(--gold,#d4a843)}
   <div id="spread-view" class="spread-view" onclick="spreadPile=null;document.getElementById('spread-view').classList.remove('active');renderBoard()">
     <div class="spread-view-cards" id="spread-view-cards" onclick="event.stopPropagation()"></div>
   </div>
-  <div id="idle-overlay" style="position:absolute;inset:0;z-index:5100;background:rgba(53,42,17,.82);align-items:center;justify-content:center;flex-direction:column;cursor:pointer"></div>
+  <!-- The game's idle reminder ("Your turn / tap anywhere", 30s) is DELIBERATELY
+       not here. rendering.js only nags if #idle-overlay exists, and with it gone
+       idleStart is never set, so the 200ms idle poll stays inert too. The lab is
+       a board you sit and think over; being prodded for thinking is wrong here.
+       Do not restore this element when re-vendoring. -->
 </div>
 
 <!-- STATISTICS SECTION — dealing trials. Hidden until opened from the bar. -->

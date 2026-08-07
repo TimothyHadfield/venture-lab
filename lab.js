@@ -29,6 +29,7 @@ const LAB = {
   revealOpp:  true,   // opponent's hand face-up (default ON)
   potential:  true,   // per-colour potential under each pile
   assist: false,      // Venture Assistant (default OFF — it takes moves away)
+  pickDraw: false,    // click any deck card to draw it (default OFF — see labPickDraw)
   ai: 'solid',        // 'casual' | 'solid' | 'sharp'
   aiDelayMs: 550,     // pause between the opponent's play and its draw
   topInset: 44,       // height of the lab bar; layout.js subtracts it from the
@@ -688,12 +689,19 @@ function _labDeckPanel(){
   const draw  = getCards(gameState, 'drawPile').filter(Boolean);
   const order = draw.slice().reverse();              // index 0 = next card drawn
 
-  const sig = order.map(c => c.id).join(',');
+  // Turn and phase are in the signature because pick draw wires click handlers
+  // onto the cards: playing a card does not change the deck's ORDER, so an
+  // order-only signature would leave the panel unbuilt exactly when your draw
+  // arrives, and nothing would be clickable.
+  const canPick = LAB.pickDraw && gameState.currentTurn === userSlot && gameState.phase === 'draw';
+  const sig = order.map(c => c.id).join(',') + '|' + gameState.currentTurn + gameState.phase
+            + (LAB.pickDraw ? 'P' : '');
   if (sig === _deckSig) return;                      // nothing changed — don't rebuild
   _deckSig = sig;
 
   _deckEl.querySelector('#vc-deck-h').textContent =
-    'DECK — ' + draw.length + ' left   (top = next draw ↓)';
+    canPick ? 'DECK — ' + draw.length + ' left   (click a card to draw it)'
+            : 'DECK — ' + draw.length + ' left   (top = next draw ↓)';
 
   const list = _deckEl.querySelector('#vc-deck-list');
   list.innerHTML = '';
@@ -758,11 +766,47 @@ function _labDeckPanel(){
         + 'font:700 8px monospace;color:#1a0f0a;background:#ffd700;padding:0 3px;border-radius:3px';
       f.appendChild(tag);
     }
+    // Pick draw: on your own draw, the deck's cards become the buttons.
+    if (canPick){
+      f.style.pointerEvents = 'auto';
+      f.style.cursor = 'pointer';
+      f.title = 'draw this card';
+      f.addEventListener('mouseenter', () => { f.style.filter = 'brightness(1.35)'; });
+      f.addEventListener('mouseleave', () => { f.style.filter = ''; });
+      f.addEventListener('click', () => labPickDraw(c.id));
+    }
     list.appendChild(f);
   });
 }
 
 on('rendered', _labDeckPanel);
+
+/* ============================================================================
+   PICK DRAW — take any card in the deck, not just the top
+
+   The same ability as on the live site (the toolkit's `pickdraw`), and it works
+   the same way: move the chosen card to the deck's POP position, then let the
+   game's own draw run. Nothing here reimplements drawing — `drawFromDrawPile`
+   pops the last element, so putting your card there and calling it means the
+   normal path does the work, with the normal animation, sound, turn handoff and
+   end-of-game check. The rest of the deck keeps its order.
+
+   Off by default: a lab where every draw is chosen is a different game, and the
+   point of the deck panel is usually to study the order you are actually dealt.
+   ========================================================================== */
+async function labPickDraw(cardId){
+  if (!LAB.pickDraw || !gameState) return false;
+  if (gameState.currentTurn !== userSlot){ _labFlash('Not your turn'); return false; }
+  if (gameState.phase !== 'draw'){ _labFlash('Play or discard first, then pick your draw'); return false; }
+  const deck = gameState.drawPile || [];
+  const idx = deck.findIndex(c => c && c.id === cardId);
+  if (idx < 0) return false;
+  const card = deck.splice(idx, 1)[0];
+  deck.push(card);                       // the pop position — the game draws THIS one
+  _deckSig = '';                         // the order changed; force a rebuild
+  await drawFromDrawPile();
+  return true;
+}
 
 /* ============================================================================
    GAME SETUP / TEARDOWN
@@ -835,6 +879,7 @@ function _labSyncToggles(){
   set('lab-opp',  LAB.revealOpp);
   set('lab-pot',  LAB.potential);
   set('lab-assist', LAB.assist);
+  set('lab-pick',   LAB.pickDraw);
 }
 
 /* The info panel is permanent chrome down the left, so — exactly like the deck
@@ -873,6 +918,15 @@ function _labInit(){
   document.getElementById('lab-opp').onclick   = () => { LAB.revealOpp  = !LAB.revealOpp;  _labSyncToggles(); renderGame(); };
   document.getElementById('lab-pot').onclick   = () => { LAB.potential  = !LAB.potential;  _labSyncToggles(); renderGame(); };
   document.getElementById('lab-assist').onclick = () => { SFX.select(); _labSetAssist(!LAB.assist); };
+  document.getElementById('lab-pick').onclick  = () => {
+    SFX.select();
+    LAB.pickDraw = !LAB.pickDraw;
+    // Picking is done ON the deck panel, so it has to be open to use it.
+    if (LAB.pickDraw && !LAB.revealDeck) _labSetDeckPanel(true);
+    _deckSig = '';                      // the cards need their click handlers now
+    _labSyncToggles();
+    renderGame();
+  };
   document.getElementById('lab-ai').onchange   = (e) => { LAB.ai = e.target.value; };
 
   _labSetInfoInset();                 // reserves the left strip for the info panel

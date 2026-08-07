@@ -35,6 +35,9 @@ fans and animations. What's different:
   turns**. The same number also sits beside the draw pile, bare.
 - **Assistant** — a toggle that greys out the cards the ascending rule says to
   hold back, and refuses to select them.
+- **Pick draw** — a toggle: on your draw, click any card in the deck panel and
+  you draw *that* card instead of the top one. The same ability the cheat
+  toolkit has on the live site.
 
 Each reveal toggle is a button in the top bar; all three are **on by default**.
 The assistant is off by default — it takes moves away from you.
@@ -74,13 +77,25 @@ free and becomes a real choice (the high cards score more, the low ones keep the
 run alive). The assistant has no business making that trade for you, so it
 releases the whole colour.
 
-Two things it never blocks:
+Two things the assistant never blocks:
 
 - **Cards the pile has already climbed past.** They can only be discarded, and
   blocking a discard could leave you with no legal move at all.
 - **Wagers behind other wagers.** They are all value 0, so none is *higher* than
   the lowest — wagers-before-numbers falls out of the same rule rather than
   being written in.
+
+### Pick draw
+
+On your draw, every card in the deck panel becomes a button: click one and you
+draw it. Off by default — a lab where every draw is chosen is a different game,
+and the deck panel is usually there to study the order you were actually dealt.
+
+Nothing here reimplements drawing. The chosen card is moved to the deck's **pop
+position** and the game's own `drawFromDrawPile()` runs, so the normal path does
+the work — normal animation, sound, turn handoff and end-of-deck check — and the
+rest of the deck keeps its order. (That is the same mechanism, and the same
+one-line contract, as `pickdraw` in the cheat toolkit.)
 
 ### Potential
 
@@ -258,6 +273,13 @@ All marked `LAB PATCH`, all no-ops when `LAB` is undefined:
   against
 
 Re-vendoring from the live site means re-applying these two.
+
+One thing is deliberately **absent** rather than patched: the game's idle
+reminder — the "Your turn / tap anywhere" scrim after 30 seconds. `rendering.js`
+only nags if `#idle-overlay` exists in the page, and the lab's `index.html`
+leaves it out, which also keeps the 200 ms idle poll inert (it never gets an
+`idleStart`). The lab is a board you sit and think over; being prodded for
+thinking is wrong here. Don't reinstate that element.
 
 ## The game
 
