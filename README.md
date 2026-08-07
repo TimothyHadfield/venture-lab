@@ -333,6 +333,7 @@ for card in hand:
 | `stats.js` | the dealing-trials section |
 | `computers.js` | the computers and the solitaire game they're tested on |
 | `builder.js` | the build-a-computer language and its page |
+| `STRATEGY.md` | survey of Lost Cities strategy writing, and a menu of ideas from it |
 | `vendor/styles.css`, `vendor/src/*.js` | the live Venture client's presentation stack, unchanged apart from two lines |
 | `simple.html` | the earlier standalone Venture Lab (self-contained, own renderer) |
 
