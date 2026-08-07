@@ -375,6 +375,22 @@ table.st tr.tot td.g{font-weight:700;color:var(--gold,#d4a843)}
     </div>
 
     <div id="lab-cpu-body"></div>
+
+    <h1 style="margin-top:46px">Duel</h1>
+    <p class="lede">The same computers with an opponent across the table, and perfect information
+      on both sides. Every deal is played <b>twice with the seats swapped</b>, so nothing here can
+      be first-player advantage. Solitaire cannot express half of Venture — with nobody to receive
+      them, discards are free — so this is where a computer that prices both sides means anything.</p>
+
+    <div class="ctrls">
+      <label>Duel <select id="lab-duel-a"></select></label>
+      <label>vs <select id="lab-duel-b"></select></label>
+      <label>Deals <input id="lab-duel-n" type="number" min="1" max="2000" step="10" value="50"></label>
+      <button id="lab-duel-run" class="primary">Run duel</button>
+      <span id="lab-duel-count" class="count"></span>
+    </div>
+
+    <div id="lab-duel-body"></div>
   </div>
 </div>
 

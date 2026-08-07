@@ -281,7 +281,23 @@ Two smaller things the lab already knows that the literature does not discuss:
 Nothing below is built. It is a menu, roughly ordered by how much I think each
 would teach us.
 
-## 5. The structural change everything else wants
+## 5. The structural change everything else wants — BUILT
+
+> **Update.** The duel harness now exists, and with it **The Broker**, the first
+> computer that prices both sides of a move (README → Duel). Two results settle
+> arguments made earlier in this file:
+>
+> - **The Patient's 126-point solitaire win does not transfer.** In a duel it
+>   cannot separate itself from Wager Open (+4.8 ± 11.8 — the interval spans
+>   zero). §4a's caveat was the whole story: patience is nearly free when every
+>   card reaches you and nobody receives your discards.
+> - **Pricing the opponent is worth more than any solitaire refinement.** The
+>   Broker beats The Patient by **+32.2 ± 9.5** and Wager Open by **+34.5 ± 9.0**
+>   — on a scale where duel scores run 0–30 rather than solitaire's 100–230.
+>
+> Deals are paired with seats swapped, which also answers the complaint below
+> about unpaired comparisons — for duels at least; the solitaire table still
+> runs each computer on its own shuffle.
 
 **A two-player computers harness.** Today `playSoloGame` deals one hand and
 never models an opponent, so the entire defensive half of the game — the half

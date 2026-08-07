@@ -318,6 +318,15 @@ function _labAITurn(){
    "what does this colour come to" into "what is the best I could get out of it
    in N more plays". Left out, the function is exactly what it always was. */
 function venturePotential(pile, pool, maxAdds){
+  return venturePlan(pile, pool, maxAdds).score;
+}
+
+/* The same rule, reporting the PLAN rather than just its score: how many cards
+   it would take to reach that number. Turns are one budget shared across five
+   colours, so anything valuing a whole position (rather than one colour) has to
+   know what each colour is spending, not only what it is worth. One
+   implementation, so the two can never drift. */
+function venturePlan(pile, pool, maxAdds){
   const hasNumbers = pile.some(c => c.value > 0);
   const topValue = hasNumbers ? pile[pile.length - 1].value : 0;
 
@@ -331,7 +340,7 @@ function venturePotential(pile, pool, maxAdds){
   // wagers first.
   if (!(maxAdds >= 0)){
     const additions = wagers.concat(numbers).sort((a, b) => a.value - b.value);
-    return MATH.scorePlayPile(pile.concat(additions));
+    return { score: MATH.scorePlayPile(pile.concat(additions)), used: additions.length };
   }
 
   // Budgeted. For a fixed number of number-cards the best set is simply the
@@ -352,13 +361,13 @@ function venturePotential(pile, pool, maxAdds){
   // −20 is already spent — which is exactly what an opening gate wants to test.
   const cap = Math.min(Math.floor(maxAdds), wagers.length + numbers.length);
   const desc = numbers.slice().sort((a, b) => b.value - a.value);
-  let best = MATH.scorePlayPile(pile);
+  let best = MATH.scorePlayPile(pile), bestUsed = 0;
   for (let w = 0; w <= Math.min(wagers.length, cap); w++){
     const take = desc.slice(0, cap - w).sort((a, b) => a.value - b.value);
     const score = MATH.scorePlayPile(pile.concat(wagers.slice(0, w)).concat(take));
-    if (score > best) best = score;
+    if (score > best){ best = score; bestUsed = w + take.length; }
   }
-  return best;
+  return { score: best, used: bestUsed };
 }
 
 /* The pool is built from THIS slot's point of view: the deck and the discards

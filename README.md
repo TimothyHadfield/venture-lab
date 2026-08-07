@@ -275,6 +275,11 @@ one venture of 8+ cards, worth +20 each.
 paired — the head-to-head figures below come from a paired harness that seeds
 one shuffle per round and hands it to every computer.
 
+⚠️⚠️ **And solitaire is not the game.** See [Duel](#duel): with an opponent
+across the table the order of that table changes almost completely, because
+solitaire hands you every card, twice the turns, and nobody who profits from
+your discards.
+
 **The Patient is far the strongest — +126.3 ± 6.4 over Wager Open on paired
 shuffles, winning 98% of them.** It more than doubles the previous best median
 (220 against 98), and the mechanism is visible in one column: it lands an 8+
@@ -350,10 +355,85 @@ play-low both fall out of the one rule rather than being written in.
 
 **Adding a computer in JavaScript** — add an entry to `COMPUTERS` in
 `computers.js` with a `decide(view)` returning `{ card, action }`, action being
-`'play'` or `'discard'`. `view` gives the hand, piles, pool, the legally playable
+`'play'` or `'discard'`, plus an optional `draw` (`'deck'` or a colour) which
+only the duel uses. `view` gives the hand, piles, pool, the legally playable
 subset, and an rng; legality, drawing and scoring are handled for you. Say the
 action explicitly — the engine will not guess, and rejects a `'play'` that is
 illegal.
+
+## Duel
+
+The same computers with an opponent across the table. **This is the real game**,
+and it reorders the table above almost completely.
+
+Each deal is played **twice with the seats swapped**, because the first player
+takes the last card and that is worth real points; an unpaired duel measures the
+seat as much as the computer.
+
+Head to head, 60 deals (120 games) each, margin per game from the first-named
+computer's side:
+
+| matchup | margin | wins |
+|---|---|---|
+| **The Broker** vs The Patient | **+32.2 ± 9.5** | 74% |
+| **The Broker** vs Wager Open | **+34.5 ± 9.0** | 76% |
+| The Patient vs Wager Open | +4.8 ± 11.8 | 49% |
+| The Broker vs Lowest | +12.2 ± 8.1 | 62% |
+| Wager Open vs Random | +7.4 ± 8.6 | 58% |
+
+Two things to take from that table.
+
+**Solitaire strength barely transfers.** The Patient wins solitaire by 126 points
+and cannot separate itself from Wager Open in a duel — its interval spans zero.
+Patience is close to free when every card reaches you and nobody receives your
+discards; across a table it costs tempo and feeds the opponent. The warning
+attached to that result turned out to be the whole story.
+
+**Scores come back to earth.** Duel scores run about 0–30 rather than solitaire's
+100–230, which is where the strategy literature says real games land ("an average
+OK round is ~30 points"). Two players sharing 44 deck cards get ~22 turns each,
+so ventures are short and every difference compresses. A duel margin of 30 is a
+thrashing; a solitaire margin of 30 is noise.
+
+### What a duel computer can see
+
+Everything: the ordered deck, the opponent's hand, both play piles, every
+discard. That is deliberate — this is a perfect-information study board — so
+"the chance I draw the red 6" is not a probability here, it is a lookup. A
+computer written for a real player's information is a different exercise, and
+one we have not done.
+
+The solitaire contract is a subset of the duel one, so **every existing computer
+duels unchanged**; one that names no draw source takes the deck.
+
+Two computers drawing from discard piles for ever would never empty the deck, so
+a duel is capped at 400 plies. Games that hit the cap are counted and reported
+rather than quietly folded into the average.
+
+### The Broker
+
+The first computer here that prices the other side of the table. Every move is
+scored in one currency — the **projected final margin**, my total minus theirs —
+so the trade that motivates the whole thing becomes a subtraction:
+
+- playing a card you would rather not costs you its lockout, and gives them
+  nothing;
+- discarding a card costs you its use **and hands them its value** — which is
+  zero if their pile has already climbed past it, and multiplied if the colour
+  is wagered.
+
+Whichever number is smaller wins. Denial needs no special case: keeping a card
+simply never adds it to their side of the subtraction.
+
+It reads the deck's order to know which cards actually reach whom (they
+alternate from the top, starting with whoever is to move — an assumption that
+breaks the moment either player draws from a discard, which is why it is a
+projection), and prices its own draw the same way, counting what taking a
+discard denies them.
+
+⚠️ Its solitaire score (median 158) is well below The Patient's, and that is the
+point rather than a flaw: with no opponent, half its machinery evaluates to zero
+and it is playing a game it was not built for.
 
 **Adding one without JavaScript** — **Build a computer**, below.
 

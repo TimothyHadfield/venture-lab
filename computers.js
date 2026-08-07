@@ -254,6 +254,125 @@ const COMPUTERS = {
     },
   },
 
+  /* ── THE BROKER ──────────────────────────────────────────────────────────
+     The first computer here that prices the other side of the table. Every
+     move is scored in one currency — the projected final MARGIN, my total minus
+     theirs — so the trade the whole thing exists for becomes a subtraction:
+
+       play a card I would rather not:  costs me the lockout, gives them nothing
+       discard a card they want:        costs me its use, GIVES THEM its value
+
+     and whichever number is smaller wins. Denial needs no special case: keeping
+     a card simply never adds it to their side.
+
+     It uses the perfect information this lab has — the deck's order and the
+     opponent's hand — so "who gets the red 6" is read off the alternation
+     rather than guessed at.
+
+     In SOLITAIRE it has no opponent to price, so it falls back to being a
+     projection-maximiser; the duel is where it means anything.
+     ──────────────────────────────────────────────────────────────────────── */
+  broker: {
+    name: 'The Broker',
+    blurb: 'Scores every move by the projected final margin — what it gains me ' +
+           'minus what it hands them. A discard is charged with what the card is ' +
+           'worth in the opponent\'s ventures (nothing at all if their pile has ' +
+           'climbed past it), so it will take a worse play over a generous ' +
+           'discard, and hold a card they need rather than give it away. Uses the ' +
+           'deck order and their hand, which this lab lets it see.',
+    decide(view){
+      const solo = !view.oppHand;                 // solitaire: nobody to trade with
+      const deck = view.deck || [];
+      const discards = view.discards || _byColor();
+
+      // Solitaire hands over no ordered deck — only the SET of unseen cards —
+      // and there nobody else is drawing, so every one of them reaches you and
+      // the game lasts one turn per deck card. Reading the duel's alternation
+      // into that world had it believing one turn was left from the very first
+      // move, so it discarded all 52 cards and scored 0. Same computer, two
+      // very different clocks.
+      const deckCount = solo ? turnsLeft(view.hand, view.pool) : deck.length;
+      const myTurns = Math.max(1, solo ? deckCount : Math.ceil(deckCount / 2));
+      const theirTurns = solo ? 0 : Math.max(0, Math.floor(deckCount / 2));
+      const sched = solo ? null : duelSchedule(view);
+
+      const myAvail = base => {
+        if (solo){
+          // Everything unseen is mine eventually: the pool already IS hand+deck,
+          // so rebuild it minus whichever card this move spends.
+          const keep = {};
+          for (const c of CONFIG.colors) keep[c] = view.pool[c].slice();
+          const gone = view.hand.filter(c => base.indexOf(c) < 0);
+          for (const g of gone){
+            const i = keep[g.color].indexOf(g);
+            if (i >= 0) keep[g.color].splice(i, 1);
+          }
+          return keep;
+        }
+        return duelAvailable(base, sched.mine, discards);
+      };
+      const theirAvailWith = extra => {
+        const d = {};
+        for (const c of CONFIG.colors) d[c] = (discards[c] || []).slice();
+        if (extra) d[extra.color] = d[extra.color].concat([extra]);
+        return duelAvailable(view.oppHand, sched.theirs, d);
+      };
+
+      // Their side is the same for every PLAY I could make — only a discard
+      // changes what they can reach — so it is computed once.
+      const theirBase = solo ? 0 : duelProject(view.oppPiles, theirAvailWith(null), theirTurns);
+
+      let best = null;
+      const consider = (action, card, mine, theirs) => {
+        const value = mine - theirs;
+        if (!best || value > best.value + 1e-9 ||
+           (Math.abs(value - best.value) < 1e-9 && action === 'play' && best.action === 'discard')){
+          best = { action, card, value };
+        }
+      };
+
+      const handLess = card => view.hand.filter(c => c !== card);
+
+      for (const card of view.playable){
+        const piles2 = {};
+        for (const c of CONFIG.colors) piles2[c] = view.piles[c];
+        piles2[card.color] = view.piles[card.color].concat([card]);
+        const mine = duelProject(piles2, myAvail(handLess(card)), myTurns - 1);
+        consider('play', card, mine, theirBase);
+      }
+      for (const card of view.hand){
+        const mine = duelProject(view.piles, myAvail(handLess(card)), myTurns - 1);
+        // The gift: the card lands on a discard pile they may take from.
+        const theirs = solo ? 0
+          : duelProject(view.oppPiles, theirAvailWith(card), theirTurns);
+        consider('discard', card, mine, theirs);
+      }
+
+      // The draw, priced the same way: what the card adds to me, less what
+      // leaving it on the pile would have given them.
+      let draw = 'deck';
+      if (!solo){
+        const next = deck.length ? deck[deck.length - 1] : null;
+        let bestDraw = next
+          ? duelProject(view.piles, myAvail(view.hand.concat([next])), myTurns - 1) - theirBase
+          : -Infinity;
+        for (const col of CONFIG.colors){
+          const pile = discards[col];
+          if (!pile || !pile.length) continue;
+          if (best.action === 'discard' && best.card.color === col) continue;  // just discarded there
+          const top = pile[pile.length - 1];
+          const d = {};
+          for (const c of CONFIG.colors) d[c] = (discards[c] || []).slice();
+          d[col] = d[col].slice(0, -1);                       // taking it denies it to them
+          const mine = duelProject(view.piles, duelAvailable(view.hand.concat([top]), sched.mine, d), myTurns - 1);
+          const theirs = duelProject(view.oppPiles, duelAvailable(view.oppHand, sched.theirs, d), theirTurns);
+          if (mine - theirs > bestDraw){ bestDraw = mine - theirs; draw = col; }
+        }
+      }
+      return { action: best.action, card: best.card, draw };
+    },
+  },
+
   random: {
     name: 'Random',
     blurb: 'Plays a uniformly random legal card. When nothing is playable it ' +
@@ -321,6 +440,159 @@ function playSoloGame(bot, rng){
   let score = 0;
   for (const c of colors) score += MATH.scorePlayPile(piles[c]);
   return { score, played, discarded, piles, discards, hand };
+}
+
+/* ============================================================================
+   THE DUEL — two computers, one deck, perfect information
+
+   Solitaire cannot express half of Venture: with nobody across the table, a
+   discard costs nothing, denial is meaningless and there is no such thing as a
+   card being worth more to them than to you. This is the same game with an
+   opponent, and it is where a valuation that prices both sides can finally be
+   measured.
+
+   WHAT A DUEL COMPUTER CAN SEE. Everything: the ordered deck, the opponent's
+   hand, both play piles, every discard. That is a deliberate choice — this is a
+   perfect-information study board, not a simulation of a real player's
+   knowledge — and it means "the chance I draw the red 6" is not a probability
+   here, it is a lookup. A computer built for a real player, seeing only its own
+   hand and the discards, is a different (and also interesting) exercise.
+
+   The solitaire contract is a subset of the duel one, so every existing
+   computer runs in a duel unchanged: hand, piles, pool, playable and rng mean
+   what they always did.
+   ========================================================================== */
+
+function _byColor(){ const o = {}; for (const c of CONFIG.colors) o[c] = []; return o; }
+function _other(slot){ return slot === 'player1' ? 'player2' : 'player1'; }
+
+function duelView(me, hands, piles, discards, deck, lastDiscard, rng){
+  const opp = _other(me);
+  // `pool` keeps its solitaire meaning — what is still gettable BY ME — which
+  // under this lab's potential rule is the deck plus my own hand. Their hand is
+  // visible (below) but is not mine to have.
+  const pool = _byColor();
+  for (const c of hands[me]) pool[c.color].push(c);
+  for (const c of deck) pool[c.color].push(c);
+  return {
+    hand: hands[me], piles: piles[me], pool,
+    playable: hands[me].filter(c => RULES.canPlayOnPlayPile(c, piles[me][c.color])),
+    rng: rng || Math.random,
+    // the duel extras
+    me, opp, oppHand: hands[opp], oppPiles: piles[opp],
+    deck,                       // ORDERED — deck[deck.length - 1] is the next card drawn
+    discards, lastDiscard,
+  };
+}
+
+/* One game. `opts.deck` replays a given shuffle, which is how the runner pairs
+   a deal and swaps seats on it. */
+function playDuelGame(botA, botB, opts){
+  opts = opts || {};
+  const deck = opts.deck ? opts.deck.slice() : RULES.createDrawPile();
+  const hands = { player1: [], player2: [] };
+  const piles = { player1: _byColor(), player2: _byColor() };
+  const discards = _byColor();
+  for (let i = 0; i < CONFIG.handSize; i++){ hands.player1.push(deck.pop()); hands.player2.push(deck.pop()); }
+
+  const bots = { player1: botA, player2: botB };
+  let turn = 'player1', lastDiscard = null, plies = 0, stalls = 0;
+  // Both players can draw from discard piles for ever without touching the
+  // deck, and then the game never ends — a real livelock, not a hypothetical.
+  // The cap ends it and is counted, so a run cannot quietly become a different
+  // experiment.
+  const MAX_PLIES = opts.maxPlies || 400;
+
+  while (deck.length > 0 && plies < MAX_PLIES){
+    plies++;
+    const me = turn;
+    const move = bots[me].decide(duelView(me, hands, piles, discards, deck, lastDiscard, opts.rng));
+    const card = move.card;
+    const idx = hands[me].indexOf(card);
+    if (idx < 0) throw new Error('computer played a card it does not hold');
+    const wantsPlay = move.action !== 'discard';
+    if (wantsPlay && !RULES.canPlayOnPlayPile(card, piles[me][card.color]))
+      throw new Error('computer tried to play an illegal card: ' + card.id);
+
+    hands[me].splice(idx, 1);
+    if (wantsPlay){ piles[me][card.color].push(card); lastDiscard = null; }
+    else { discards[card.color].push(card); lastDiscard = card.color; }
+
+    // The draw. A computer that names no source takes the deck, which is what
+    // every solitaire computer does — so they all still work here.
+    const want = move.draw && move.draw !== 'deck' ? move.draw : null;
+    let drew = null;
+    if (want && want !== lastDiscard && discards[want] && discards[want].length){
+      drew = discards[want].pop();
+      stalls++;                        // the deck did not move: the game got longer
+    } else {
+      drew = deck.pop();
+    }
+    if (drew) hands[me].push(drew);
+    turn = _other(me);
+  }
+
+  const score = s => { let t = 0; for (const c of CONFIG.colors) t += MATH.scorePlayPile(piles[s][c]); return t; };
+  const p1 = score('player1'), p2 = score('player2');
+  return { p1, p2, margin: p1 - p2, plies, stalls, hung: deck.length > 0, piles };
+}
+
+/* ============================================================================
+   VALUING A MOVE — both sides of it
+
+   The currency is the expected final MARGIN: what I finish with minus what they
+   finish with. Everything else here exists to estimate those two numbers.
+
+   Potential is a per-colour ceiling and five of them cannot be added, because
+   turns are one budget shared between them. `duelProject` spends that budget
+   greedily, best colour first, taking each colour at most once — the same
+   conservative approximation the cheat toolkit's advisor uses for its footer.
+
+   With the deck order known, "who gets the red 6" is not a guess: the cards
+   alternate from the top of the deck, starting with whoever is to move. That
+   assumption breaks the moment either player draws from a discard pile — it
+   shifts the parity — which is exactly why it is called a projection.
+   ========================================================================== */
+
+function duelSchedule(view){
+  const mine = [], theirs = [];
+  for (let i = view.deck.length - 1, k = 0; i >= 0; i--, k++) (k % 2 ? theirs : mine).push(view.deck[i]);
+  return { mine, theirs };
+}
+
+/* What each player can still get their hands on, per colour: their own hand,
+   the deck cards the alternation sends them, and the top of each discard pile
+   (only the top — the rest is buried, exactly as the board's readout has it). */
+function duelAvailable(hand, scheduled, discards){
+  const avail = _byColor();
+  for (const c of hand) avail[c.color].push(c);
+  for (const c of scheduled) avail[c.color].push(c);
+  for (const col of CONFIG.colors){
+    const pile = discards[col];
+    if (pile && pile.length) avail[col].push(pile[pile.length - 1]);
+  }
+  return avail;
+}
+
+function duelProject(piles, avail, turns){
+  let total = 0;
+  for (const c of CONFIG.colors) total += MATH.scorePlayPile(piles[c]);
+  let budget = Math.max(0, turns);
+  const spent = {};
+  while (budget > 0){
+    let bestC = null, bestGain = 0, bestUsed = 0;
+    for (const c of CONFIG.colors){
+      if (spent[c]) continue;
+      const plan = venturePlan(piles[c], avail[c] || [], budget);
+      const gain = plan.score - MATH.scorePlayPile(piles[c]);
+      if (gain > bestGain){ bestGain = gain; bestC = c; bestUsed = plan.used; }
+    }
+    if (!bestC) break;                      // nothing left that is worth a turn
+    total += bestGain;
+    budget -= Math.max(1, bestUsed);
+    spent[bestC] = true;
+  }
+  return total;
 }
 
 /* ============================================================================
@@ -498,6 +770,114 @@ function cpuRender(){
     + charts;
 }
 
+/* ============================================================================
+   THE DUEL RUNNER
+
+   Every deal is played TWICE with the seats swapped, and both results are kept
+   from A's point of view. Venture gives the first player a real edge (they take
+   the last card), so an unpaired duel would measure the seat as much as the
+   computer.
+   ========================================================================== */
+const DUEL = { running: false, raf: 0, a: null, b: null, margins: [], deals: 0,
+               target: 0, plies: 0, stalls: 0, hung: 0 };
+
+function duelRun(a, b, deals){
+  if (DUEL.running) return;
+  Object.assign(DUEL, { running: true, a, b, margins: [], deals: 0, target: deals,
+                        plies: 0, stalls: 0, hung: 0 });
+  _duelSync();
+  const step = () => {
+    if (!DUEL.running){ _duelSync(); return; }
+    try {
+      const end = Math.min(DUEL.target, DUEL.deals + 4);
+      while (DUEL.deals < end){
+        const deck = RULES.createDrawPile();
+        const g1 = playDuelGame(COMPUTERS[a], COMPUTERS[b], { deck });
+        const g2 = playDuelGame(COMPUTERS[b], COMPUTERS[a], { deck });
+        DUEL.margins.push(g1.margin, -g2.margin);      // both from A's side
+        DUEL.plies += g1.plies + g2.plies;
+        DUEL.stalls += g1.stalls + g2.stalls;
+        DUEL.hung += (g1.hung ? 1 : 0) + (g2.hung ? 1 : 0);
+        DUEL.deals++;
+      }
+    } catch (e){
+      DUEL.running = false; _duelSync();
+      const host = document.getElementById('lab-duel-body');
+      if (host) host.innerHTML = '<p class="err"><b>That duel failed.</b> ' + (e && e.message ? e.message : e) + '</p>';
+      console.error('[duel] failed:', e);
+      return;
+    }
+    duelRender();
+    if (DUEL.deals < DUEL.target) DUEL.raf = requestAnimationFrame(step);
+    else { DUEL.running = false; _duelSync(); }
+  };
+  DUEL.raf = requestAnimationFrame(step);
+}
+
+function duelRender(){
+  const host = document.getElementById('lab-duel-body');
+  const count = document.getElementById('lab-duel-count');
+  if (!host) return;
+  const n = DUEL.margins.length;
+  if (count) count.textContent = DUEL.deals ? (DUEL.deals + ' deals · ' + n + ' games') : '';
+  if (!n){ host.innerHTML = '<p class="note">No games yet — pick two computers and press <b>Run duel</b>.</p>'; return; }
+
+  const mean = DUEL.margins.reduce((s, v) => s + v, 0) / n;
+  const sd = n > 1 ? Math.sqrt(DUEL.margins.reduce((s, v) => s + (v - mean) * (v - mean), 0) / (n - 1)) : 0;
+  const ci = 1.96 * sd / Math.sqrt(n);
+  const wins = DUEL.margins.filter(v => v > 0).length;
+  const ties = DUEL.margins.filter(v => v === 0).length;
+  const nameA = COMPUTERS[DUEL.a].name, nameB = COMPUTERS[DUEL.b].name;
+  // An interval that still spans zero has not decided anything yet — say so
+  // rather than let a number that could be noise read as a result.
+  const decided = Math.abs(mean) > ci;
+
+  host.innerHTML =
+      '<table class="st"><thead><tr><th>Result</th><th>' + nameA + ' vs ' + nameB + '</th></tr></thead><tbody>'
+    + '<tr><td class="g">Margin per game</td><td class="med">' + (mean >= 0 ? '+' : '') + mean.toFixed(1)
+    +   ' ± ' + ci.toFixed(1) + '</td></tr>'
+    + '<tr><td class="g">' + nameA + ' wins</td><td class="num">' + (100 * wins / n).toFixed(1) + '%'
+    +   (ties ? '  (ties ' + (100 * ties / n).toFixed(1) + '%)' : '') + '</td></tr>'
+    + '<tr><td class="g">Game length</td><td class="num">' + (DUEL.plies / (2 * DUEL.deals)).toFixed(0)
+    +   ' plies, ' + (DUEL.stalls / (2 * DUEL.deals)).toFixed(1) + ' discard draws</td></tr>'
+    + (DUEL.hung ? '<tr><td class="g">Hit the ply cap</td><td class="num">' + DUEL.hung + '</td></tr>' : '')
+    + '</tbody></table>'
+    + '<p class="note">' + (decided
+        ? '<b>' + (mean > 0 ? nameA : nameB) + '</b> is ahead by more than the interval, so this is a real difference.'
+        : 'The interval still spans zero — on this many deals the two are <b>indistinguishable</b>. Run more.')
+    + ' Each deal is played twice with the seats swapped, so the first-player edge cancels.</p>';
+}
+
+function _duelSync(){
+  const run = document.getElementById('lab-duel-run');
+  if (run){ run.disabled = DUEL.running; run.textContent = DUEL.running ? 'Running…' : 'Run duel'; }
+}
+
+function duelSyncList(){
+  const opts = Object.keys(COMPUTERS)
+    .map(k => '<option value="' + k + '">' + COMPUTERS[k].name + '</option>').join('');
+  for (const [id, fallback] of [['lab-duel-a', 'broker'], ['lab-duel-b', 'patient']]){
+    const sel = document.getElementById(id);
+    if (!sel) continue;
+    const keep = sel.value;
+    sel.innerHTML = opts;
+    sel.value = (keep && COMPUTERS[keep]) ? keep : (COMPUTERS[fallback] ? fallback : Object.keys(COMPUTERS)[0]);
+  }
+}
+
+function _duelInit(){
+  const btn = document.getElementById('lab-duel-run');
+  if (!btn) return;
+  duelSyncList();
+  btn.onclick = () => {
+    const v = parseInt(document.getElementById('lab-duel-n').value, 10);
+    duelRun(document.getElementById('lab-duel-a').value,
+            document.getElementById('lab-duel-b').value,
+            Math.max(1, Math.min(2000, isFinite(v) ? v : 50)));
+  };
+  duelRender();
+}
+
 function _cpuSyncButtons(){
   const run = document.getElementById('lab-cpu-run');
   const stop = document.getElementById('lab-cpu-stop');
@@ -516,6 +896,7 @@ function cpuSyncList(){
   sel.innerHTML = '<option value="all">All computers</option>'
     + Object.keys(COMPUTERS).map(k => '<option value="' + k + '">' + COMPUTERS[k].name + '</option>').join('');
   if (keep && sel.querySelector('option[value="' + keep + '"]')) sel.value = keep;
+  if (typeof duelSyncList === 'function') duelSyncList();   // builder computers duel too
   cpuStop();
   cpuReset();
 }
@@ -528,6 +909,7 @@ function _cpuInit(){
   };
   document.getElementById('lab-cpu-stop').onclick = cpuStop;
   document.getElementById('lab-cpu-reset').onclick = () => { cpuStop(); cpuReset(); };
+  _duelInit();
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _cpuInit);
