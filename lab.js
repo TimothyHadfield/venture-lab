@@ -28,6 +28,7 @@ const LAB = {
   revealDeck: true,   // draw pile face-up (default ON — this is the lab)
   revealOpp:  true,   // opponent's hand face-up (default ON)
   potential:  true,   // per-colour potential under each pile
+  assist: false,      // Venture Assistant (default OFF — it takes moves away)
   ai: 'solid',        // 'casual' | 'solid' | 'sharp'
   aiDelayMs: 550,     // pause between the opponent's play and its draw
   topInset: 44,       // height of the lab bar; layout.js subtracts it from the
@@ -81,6 +82,12 @@ function _labFlash(msg){
 
 function selectCard(cardId){
   if (gameState.currentTurn !== userSlot || gameState.phase !== 'play') return;
+  // The assistant's grey-out is CSS; this is the rule. A click can still arrive
+  // from a stale handler or a card that was blocked between render and press.
+  if (_labAssistBlocked().has(cardId)){
+    _labFlash('Assistant: play the lowest card of that colour first');
+    return;
+  }
   SFX.select();
   spreadPile = null;
   const hand = getCards(gameState, 'hands', userSlot);
@@ -455,6 +462,159 @@ function _labColorEmptySlots(){
 on('rendered', _labColorEmptySlots);
 
 /* ============================================================================
+   PROJECTED TURNS
+
+   How many more times a player gets to PLAY a card, if every draw for the rest
+   of the game comes from the deck.
+
+   A turn is play-then-draw and the game ends the moment the draw pile empties,
+   so each remaining turn burns exactly one deck card: D cards left means D
+   turns left in total, split between the two players. A draw taken from a
+   discard pile instead leaves the deck untouched and stretches the game by a
+   turn — which is exactly why this is *projected* and not *remaining*.
+
+   Counting, from the player to move: their draw is the 1st of the D, the other
+   player's is the 2nd, and so on alternately. Every one of those draws has a
+   play in front of it except possibly the current one — if the player to move
+   has already played this turn (phase 'draw'), their next play is a full round
+   away.
+   ========================================================================== */
+function labProjectedTurns(slot){
+  if (!gameState) return 0;
+  const D = getCards(gameState, 'drawPile').length;
+  if (D <= 0) return 0;
+  const toMove = gameState.currentTurn;
+  const playsForMover = (gameState.phase === 'play' ? 1 : 0) + Math.floor((D - 1) / 2);
+  const playsForOther = Math.floor(D / 2);
+  return slot === toMove ? playsForMover : playsForOther;
+}
+
+/* ============================================================================
+   THE INFO PANEL — a readout column down the left
+
+   Entries are declared here rather than in the markup, so adding one later is
+   an object in this list: a label, the value, and the one line of explanation
+   that stops the number being a mystery. `value` is called on every render.
+   ========================================================================== */
+const LAB_INFO = [
+  {
+    key:   'projected-turns',
+    label: 'Projected turns',
+    help:  'plays you have left, if every draw from here comes from the deck',
+    value: () => labProjectedTurns(userSlot),
+  },
+];
+
+let _infoEl = null;
+
+function _labInfoPanel(){
+  if (!_infoEl){
+    _infoEl = document.createElement('div');
+    _infoEl.id = 'lab-info';
+    _infoEl.innerHTML = '<h2>INFO</h2><div id="lab-info-rows"></div>';
+    document.body.appendChild(_infoEl);
+  }
+  if (!gameState) return;
+  const rows = _infoEl.querySelector('#lab-info-rows');
+  rows.innerHTML = LAB_INFO.map(item => {
+    let v;
+    // An entry that throws must not take the board's render down with it.
+    try { v = item.value(); } catch (e) { v = '—'; }
+    return '<div class="lab-info-row" data-key="' + item.key + '">'
+         + '<span class="k">' + item.label + '</span>'
+         + '<span class="v">' + v + '</span>'
+         + (item.help ? '<span class="h">' + item.help + '</span>' : '')
+         + '</div>';
+  }).join('');
+}
+
+/* The same number beside the draw pile, on its own — you read it while looking
+   at the board, and by then you know what it is.
+
+   Positioned off the draw pile's empty SLOT, not off the cards: 'rendered'
+   fires at the start of the card animation, so a card's rect is still its old
+   one (the same trap the potential layer documents). The slot is plain markup
+   and is already where it will be. */
+function _labTurnsBesideDeck(){
+  const board = document.querySelector('.board-area');
+  if (!board) return;
+  let layer = document.getElementById('lab-turns-layer');
+  if (!layer){
+    layer = document.createElement('div');
+    layer.id = 'lab-turns-layer';
+    board.appendChild(layer);
+  }
+  const row = document.getElementById('discard_draw');
+  const cols = row ? row.querySelectorAll('.card-col') : [];
+  const drawCol = cols[cols.length - 1];              // draw pile is always last
+  const slot = drawCol && drawCol.querySelector('.pile-space, .card');
+  if (!gameState || !slot){ layer.innerHTML = ''; return; }
+
+  const boardRect = board.getBoundingClientRect();
+  const r = slot.getBoundingClientRect();
+  const gap = 6;
+  const cy = r.top + r.height / 2 - boardRect.top;
+  // Outside the pile on the right if the board has room there, otherwise on its
+  // left — at the narrow end of the window the draw column sits hard against
+  // the board edge and a right-hand label would be half off it.
+  const roomRight = boardRect.right - r.right;
+  const html = roomRight >= 26
+    ? '<div class="lab-turns" style="left:' + (r.right + gap - boardRect.left) + 'px;top:' + cy + 'px">'
+    : '<div class="lab-turns" style="left:' + (r.left - gap - boardRect.left) + 'px;top:' + cy + 'px;transform:translate(-100%,-50%)">';
+  layer.innerHTML = html + labProjectedTurns(userSlot) + '</div>';
+}
+
+/* ============================================================================
+   THE VENTURE ASSISTANT
+
+   A venture only ascends, so of the cards you hold in one colour, playing any
+   but the LOWEST locks the rest out for good. With the assistant on, those
+   higher cards are greyed and cannot be picked up — the move is still there to
+   be made, just not by accident.
+
+   THE EXCEPTION — and it is the whole reason this needs a number rather than a
+   rule of thumb: holding back only pays if you will actually get to play them
+   all. Once a colour has more playable cards in hand than you have projected
+   turns, you cannot get them all down whatever you do, so the ascending rule
+   stops being free and starts being a choice between them (the high ones score
+   more; the low ones keep the run alive). The assistant has no business making
+   that trade for you, so it lets the whole colour go.
+
+   Cards that CANNOT legally join the venture — the pile has already climbed
+   past them — are never blocked. Their only remaining use is to be discarded,
+   and blocking a discard could leave you with no legal move at all.
+   ========================================================================== */
+function _labAssistBlocked(){
+  const out = new Set();
+  if (!LAB.assist || !gameState || !gameState.hands) return out;
+  const hand  = getCards(gameState, 'hands', userSlot);
+  const turns = labProjectedTurns(userSlot);
+  for (const color of CONFIG.colors){
+    const pile = getCards(gameState, 'playPiles', userSlot, color);
+    const live = hand.filter(c => c.color === color && canPlayOnPlayPile(c, pile))
+                     .sort((a, b) => a.value - b.value);
+    if (live.length < 2) continue;          // nothing to hold back behind
+    if (turns < live.length) continue;      // the exception: not enough turns anyway
+    // Strictly higher, so the three wagers of a colour (all value 0) never
+    // block each other — and they are the lowest cards there are, which is the
+    // wagers-before-numbers rule falling out rather than being written in.
+    for (const c of live) if (c.value > live[0].value) out.add(c.id);
+  }
+  return out;
+}
+
+function _labApplyAssist(){
+  if (!gameState || !gameState.hands) return;
+  const blocked = _labAssistBlocked();
+  for (const c of getCards(gameState, 'hands', userSlot)){
+    const el = document.querySelector('[data-card-id="' + c.id + '"]');
+    if (el) el.classList.toggle('lab-blocked', blocked.has(c.id));
+  }
+}
+
+on('rendered', () => { _labInfoPanel(); _labTurnsBesideDeck(); _labApplyAssist(); });
+
+/* ============================================================================
    THE DECK PANEL — draw pile as COLOUR COLUMNS on the right
 
    A port of the xray panel from the cheat toolkit (cheats.js `_xrayUpdate`),
@@ -674,6 +834,28 @@ function _labSyncToggles(){
   set('lab-deck', LAB.revealDeck);
   set('lab-opp',  LAB.revealOpp);
   set('lab-pot',  LAB.potential);
+  set('lab-assist', LAB.assist);
+}
+
+/* The info panel is permanent chrome down the left, so — exactly like the deck
+   panel on the right — the board has to be solved for the width it actually
+   gets. LAB.leftInset is what layout.js subtracts; #game-screen's padding-left
+   matches it, so the board never runs underneath the panel. */
+const LAB_INFO_W = 170;                 // == #lab-info width in index.html
+function _labSetInfoInset(){
+  LAB.leftInset = LAB_INFO_W + 8;       // + the panel's 4px offset each side
+  document.getElementById('game-screen').style.paddingLeft = LAB.leftInset + 'px';
+  computeLayout._vw = null;             // invalidate the layout cache
+  renderGame._snapNextRender = true;
+}
+
+function _labSetAssist(on){
+  LAB.assist = !!on;
+  // A card selected before the assistant came on may be one it now rules out;
+  // leaving it selected would let the block be walked straight through.
+  if (LAB.assist && selectedCard && _labAssistBlocked().has(selectedCard.id)) selectedCard = null;
+  _labSyncToggles();
+  renderGame();
 }
 
 function _labInit(){
@@ -690,8 +872,10 @@ function _labInit(){
   document.getElementById('lab-deck').onclick  = () => { SFX.select(); _labSetDeckPanel(!LAB.revealDeck); };
   document.getElementById('lab-opp').onclick   = () => { LAB.revealOpp  = !LAB.revealOpp;  _labSyncToggles(); renderGame(); };
   document.getElementById('lab-pot').onclick   = () => { LAB.potential  = !LAB.potential;  _labSyncToggles(); renderGame(); };
+  document.getElementById('lab-assist').onclick = () => { SFX.select(); _labSetAssist(!LAB.assist); };
   document.getElementById('lab-ai').onchange   = (e) => { LAB.ai = e.target.value; };
 
+  _labSetInfoInset();                 // reserves the left strip for the info panel
   _labSetDeckPanel(LAB.revealDeck);   // reserves the strip and sizes the board for it
   _labSyncToggles();
   newLabGame();

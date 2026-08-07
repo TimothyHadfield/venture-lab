@@ -31,7 +31,56 @@ fans and animations. What's different:
   them are left plain, since the cards already answer it. Always on, not a
   toggle.
 
-Each toggle is a button in the top bar; all three are **on by default**.
+- **Info panel** — a readout column down the left. One entry so far: **projected
+  turns**. The same number also sits beside the draw pile, bare.
+- **Assistant** — a toggle that greys out the cards the ascending rule says to
+  hold back, and refuses to select them.
+
+Each reveal toggle is a button in the top bar; all three are **on by default**.
+The assistant is off by default — it takes moves away from you.
+
+### Projected turns
+
+**How many more times you get to play a card, if every draw from here comes from
+the deck.**
+
+A turn is play-then-draw and the game ends the moment the draw pile empties, so
+each remaining turn burns exactly one deck card: `D` cards left is `D` turns
+left, split between the two players. That is why it is *projected* rather than
+*remaining* — a draw taken from a discard pile leaves the deck untouched and
+stretches the game by a turn, so every discard draw either player takes adds
+one.
+
+It counts *your plays*, not the game's turns, since that is the quantity every
+decision is actually against — including the assistant's. If you have already
+played this turn, your next play is a full round away and the number reflects
+that.
+
+Adding another entry to the panel is one object in `LAB_INFO` (`lab.js`): a
+label, a `value()` and a line of explanation.
+
+### Assistant
+
+A venture only ascends, so of the cards you hold in one colour, playing any but
+the **lowest** locks the rest out for good. With the assistant on, those higher
+cards are greyed and cannot be picked up. The move still exists — it just can't
+happen by accident.
+
+**The exception, and the reason this needs a number rather than a rule of
+thumb:** holding cards back only pays if you will actually get to play them all.
+Once a colour has more playable cards in hand than you have projected turns, you
+cannot get them all down whatever you do — so the ascending rule stops being
+free and becomes a real choice (the high cards score more, the low ones keep the
+run alive). The assistant has no business making that trade for you, so it
+releases the whole colour.
+
+Two things it never blocks:
+
+- **Cards the pile has already climbed past.** They can only be discarded, and
+  blocking a discard could leave you with no legal move at all.
+- **Wagers behind other wagers.** They are all value 0, so none is *higher* than
+  the lowest — wagers-before-numbers falls out of the same rule rather than
+  being written in.
 
 ### Potential
 
@@ -204,8 +253,9 @@ are lifted from the game's own `gamelogic.js` so interaction behaves identically
 All marked `LAB PATCH`, all no-ops when `LAB` is undefined:
 
 - `rendering.js` — reveal the opponent's hand in live play (upstream: replay only)
-- `layout.js` — subtract the lab bar's height and the deck panel's width from
-  the viewport the board solves against
+- `layout.js` — subtract the lab bar's height and both side panels' widths (the
+  deck columns right, the info panel left) from the viewport the board solves
+  against
 
 Re-vendoring from the live site means re-applying these two.
 

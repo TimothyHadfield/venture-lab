@@ -362,10 +362,14 @@ function statsShow(on){
   const sec = document.getElementById('lab-stats');
   const board = document.getElementById('game-screen');
   const deck = document.getElementById('vc-deck');
+  const info = document.getElementById('lab-info');
   if (!sec) return;
   sec.style.display = on ? '' : 'none';
   board.style.display = on ? 'none' : '';
+  // Both side panels are fixed and paint ABOVE the stats section, so they have
+  // to go with the board rather than float over the statistics.
   if (deck) deck.style.display = (on || !LAB.revealDeck) ? 'none' : '';
+  if (info) info.style.display = on ? 'none' : '';
   const btn = document.getElementById('lab-statsbtn');
   if (btn) btn.classList.toggle('on', !!on);
   if (on) statsRender();

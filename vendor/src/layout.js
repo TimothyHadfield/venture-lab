@@ -36,9 +36,11 @@ function computeLayout() {
   // board would be laid out for a taller window than it actually gets and the
   // bottom would overflow. LAB.topInset matches #game-screen's padding-top.
   const vh = window.innerHeight - ((typeof LAB !== 'undefined' && LAB.topInset) || 0);
-  // rightInset reserves the strip the deck panel occupies, so the board is
-  // solved for the width it actually gets instead of running underneath it.
-  const vw = window.innerWidth - ((typeof LAB !== 'undefined' && LAB.rightInset) || 0);
+  // rightInset and leftInset reserve the strips the deck panel (right) and the
+  // info panel (left) occupy, so the board is solved for the width it actually
+  // gets instead of running underneath them.
+  const vw = window.innerWidth - ((typeof LAB !== 'undefined' && LAB.rightInset) || 0)
+                               - ((typeof LAB !== 'undefined' && LAB.leftInset)  || 0);
 
   // Skip if nothing that affects the solve changed
   if (computeLayout._vh === vh && computeLayout._vw === vw) return computeLayout._result;
