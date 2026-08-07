@@ -330,7 +330,13 @@ say.
 
 ### The opponent (needs §5)
 - ★ **`gift value`** — what discarding this card is worth to the opponent, given
-  their open colours and multipliers. §2.4 is entirely this number.
+  their open colours and multipliers. §2.4 is entirely this number, and
+  [§6a](#6a-valuing-a-card--to-you-and-to-them) works out how to compute it.
+- ★ **`dead to them`** — the mirror of the panel's *free discards*. A card below
+  their pile's top can never score for them; the intersection with your own dead
+  cards is the perfect throw, and it needs no probabilities at all.
+- ★ **`denial value`** — what holding a card denies them. Sometimes the right
+  answer to "play it or discard it" is *neither*.
 - ★ **`opp break even gap`** per colour — is a colour still a liability for them.
 - **`opp wagers`** in a colour, **`opp pile top`**, **`opp is open`**.
 - **`blocking value`** — points denied by holding a card they need.
@@ -362,6 +368,161 @@ say.
   is really an evaluation function, and filters express those clumsily.
 - **Arithmetic** (`potential - 20`), **`for color in colors:`** for colour-level
   choices, and **named constants** so a threshold can be tuned in one place.
+
+## 6a. Valuing a card — to you, and to them
+
+`change in potential` is a good rule that is being asked to do a job it cannot
+do. Worth separating what it is genuinely good at from where it runs out.
+
+**What it gets right.** As a chooser *between plays in a colour* it is excellent,
+and it encodes several separate pieces of strategy in one line: a red 2 onto an
+empty pile costs 102 because it locks out all three wagers, a red wager costs 0,
+and playing a 7 over your held 2 charges you for the 3–6 you can no longer use.
+Wagers-first, play-low and gap-management all fall out of it. Keep it.
+
+**Where it runs out — four separate problems.**
+
+1. **It measures a ceiling, not an expectation.** Potential assumes you receive
+   every remaining card of a colour. Reachable potential caps that by turns,
+   which helps, but it still assumes you get the *best* ones. Cards you are
+   unlikely to see are priced as if certain.
+2. **It measures destruction, not gain.** Every move "costs" potential; nothing
+   ever earns anything. That is why it collapsed as a play-vs-discard arbiter
+   ([§4a](#4a-update--the-folklores-gap-rule-is-worth-more-than-everything-else-here)):
+   playing a card converts optimism into fact and scores no credit for it.
+3. **It is per-colour, and turns are not.** A turn spent on red is a turn green
+   wanted. Nothing in a per-colour number can see that.
+4. **It has no opponent term at all.** Which is the thing being asked for here.
+
+### The currency to use instead
+
+There is only one honest unit in a two-player zero-sum game:
+
+> **the expected final score margin** — what I finish with, minus what they
+> finish with.
+
+Every "value" worth computing is a difference in that number. A card's value to
+me is how much my expected final score falls if I lose it; its value to them is
+how much theirs rises if they get it. Both in points, so they can be compared,
+added, and traded off — which is exactly what `change in potential` cannot do,
+because a potential is not points anybody will score.
+
+### Four pieces, each computable
+
+**(1) Will I get to use it?** A held card only scores if the colour is open (or
+worth opening), the card is above my pile's top when I play it, and I have a
+spare turn. For an unseen card, a serviceable estimate is
+
+    P(I draw a given unseen card) ≈ my remaining deck draws / unseen cards
+
+which is the same hypergeometric reasoning the dealing-statistics section
+already does. In the lab we can do better — the deck order is *known*, so this
+is not a probability but a fact (see the caveat at the end).
+
+**(2) What is it worth if played?** Not its face value — its face value **times
+the venture's multiplier**, plus 20 if it is the card that reaches eight:
+
+    marginal(card) = value × (1 + wagers in that venture)   [+20 if it lands the bonus]
+
+This single line explains why "never discard into a colour they have wagers in"
+is such strong advice: the same 7 is worth 7 to a bare venture and 28 to a
+triple-wagered one.
+
+**(3) What does playing it destroy?** The lockout, priced in expectation rather
+than as a ceiling:
+
+    lockout(card) = Σ over live lower cards u  P(I get u in time) × marginal(u)
+
+That is `change in potential`'s idea, with the certainty taken out of it.
+
+**(4) Opening a colour is a different question entirely, and conflating the two
+is most of why the current rule feels short.** Whether to play a card into a
+running venture is a *card-level* question — marginal gain against lockout.
+Whether to *open* a colour is a *venture-level* one: is the whole expedition's
+expected total above zero, given the cards, the wagers and the turns? Opening
+should be priced by the venture, and only then should individual cards be priced
+by the margin. One rule cannot answer both, which is why the "opening costs 102"
+number is simultaneously correct and useless for deciding whether to open.
+
+### The opponent side — three quantities, not one
+
+**Gift value** — what handing a card over is worth to them:
+
+    gift(card) = P(they take it) × marginal(card, THEIR venture)
+
+with the pieces:
+
+- If the card is **below their pile's top**, it is dead to them: gift is exactly
+  **zero**, whatever its face value. Their own 10 is free to hand over once they
+  have played a 10.
+- If their colour is **open**, gift is `value × (1 + their wagers)` — the number
+  that makes wagered colours radioactive.
+- If their colour is **unopened**, they must pay the −20 to use it, so gift is
+  much smaller and is really a venture-level question for them.
+- `P(they take it)` can start crude: 1 when the card beats what a deck draw is
+  worth to them, a small constant otherwise. Even a 0/1 version captures most of
+  it, because the interesting cases are the extremes.
+
+**Dead-to-them, and the perfect discard.** We already compute *dead to me*
+(the panel's **free discards**). Its mirror is dead to *them*, and the
+intersection is the ideal throw: a card that can never score for either side.
+That is cheap to compute, needs no probabilities, and I suspect it alone would
+capture much of what careful human discarding achieves.
+
+**Denial — the term nobody counts.** A card in your hand is a card they can
+never have. Holding their key 10 to the end of the game is worth
+`marginal(10, their venture)` to you in margin terms, while being worth nothing
+to you in points. The cost is one hand slot for the rest of the game, which is
+roughly the average marginal value of a live card. So:
+
+    hold as hostage when   gift(card) > average value of a live hand slot
+
+That is a real strategy the current vocabulary cannot even express, and it is
+the honest answer to "should I discard a potentially valuable card": often the
+answer is *neither play it nor discard it* — keep it, and throw something dead.
+
+### The decision rule this adds up to
+
+Every move on one scale, in expected final margin:
+
+| move | my side | their side |
+|---|---|---|
+| play card c | `+ marginal(c) − lockout(c)` | 0 |
+| discard c | `− P(I would have played c) × marginal(c)` | `− gift(c)` |
+| (holding, implicitly) | keeps a slot occupied | `+ denial` |
+
+Pick the largest total. "Play a sub-optimal card or hand them a good one" stops
+being a judgement call and becomes a subtraction: the sub-optimal play costs you
+its own lockout, the discard costs you the gift, and you take the cheaper.
+
+Note this also repairs the failure in §4a for free. That design collapsed
+because potential gave no credit for banking points; an expected-points currency
+credits a play with `marginal(c)`, so play and discard become genuinely
+comparable rather than systematically tilted.
+
+### How we would know if it is right
+
+Not by argument — by the **endgame solver** ([§7](#7-computers-worth-building)).
+Once the deck is short, the exact best move is computable with no model at all.
+Scoring each heuristic by *how often it agrees with the solver* on real
+positions turns "is this valuation any good" into a measurement. The cheat
+toolkit did exactly this and found its heuristic already optimal on 98.6% of
+endgame positions — which was how it learned the remaining headroom was in the
+midgame, not the endgame.
+
+### The caveat that shapes all of it
+
+The lab is a **perfect-information** board: we can see the deck order, so
+"P(I draw the red 6)" is not a probability here, it is a lookup. That gives two
+legitimate and different tools, and they should not be blurred:
+
+- A **solver's** valuation, using the true draw schedule — answers *what was
+  actually optimal*, and is the yardstick.
+- A **player's** valuation, using only what a real player could know — answers
+  *what was the right decision with the information available*, and is what an
+  assistant should say.
+
+The gap between the two is itself worth showing: it is the price of not knowing.
 
 ## 7. Computers worth building
 
