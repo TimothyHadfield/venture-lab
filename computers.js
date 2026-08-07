@@ -406,17 +406,29 @@ function _cpuSyncButtons(){
   if (stop) stop.style.display = CPU.running ? '' : 'none';
 }
 
-function _cpuInit(){
+/* Rebuild the picker and start the counts over. Called at boot and again by the
+   builder whenever a computer is saved or deleted: every row in the table is a
+   count of games played, so mixing a newcomer's 200 games in with everyone
+   else's 3,000 would put two different experiments in one table. */
+function cpuSyncList(){
   const sel = document.getElementById('lab-cpu-sel');
+  if (!sel) return;
+  const keep = sel.value;
   sel.innerHTML = '<option value="all">All computers</option>'
     + Object.keys(COMPUTERS).map(k => '<option value="' + k + '">' + COMPUTERS[k].name + '</option>').join('');
+  if (keep && sel.querySelector('option[value="' + keep + '"]')) sel.value = keep;
+  cpuStop();
+  cpuReset();
+}
+
+function _cpuInit(){
+  cpuSyncList();
   document.getElementById('lab-cpu-run').onclick = () => {
     const v = parseInt(document.getElementById('lab-cpu-n').value, 10);
     cpuRun(Math.max(1, Math.min(200000, isFinite(v) ? v : 1000)));
   };
   document.getElementById('lab-cpu-stop').onclick = cpuStop;
   document.getElementById('lab-cpu-reset').onclick = () => { cpuStop(); cpuReset(); };
-  cpuReset();
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _cpuInit);

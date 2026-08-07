@@ -363,8 +363,12 @@ function statsShow(on){
   const board = document.getElementById('game-screen');
   const deck = document.getElementById('vc-deck');
   const info = document.getElementById('lab-info');
+  const build = document.getElementById('lab-build');
   if (!sec) return;
   sec.style.display = on ? '' : 'none';
+  // The builder is a page of its own at the same depth: whichever of the two is
+  // asked for, the other goes away rather than stacking underneath.
+  if (build) build.style.display = 'none';
   board.style.display = on ? 'none' : '';
   // Both side panels are fixed and paint ABOVE the stats section, so they have
   // to go with the board rather than float over the statistics.

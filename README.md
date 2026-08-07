@@ -241,11 +241,88 @@ playing any number locks out every remaining wager of that colour, so a red 2
 onto an empty pile costs **102** while a red wager costs **0**. Wagers-first and
 play-low both fall out of the one rule rather than being written in.
 
-**Adding a computer** — add an entry to `COMPUTERS` in `computers.js` with a
-`decide(view)` returning `{ card, action }`, action being `'play'` or
-`'discard'`. `view` gives the hand, piles, pool, the legally playable subset,
-and an rng; legality, drawing and scoring are handled for you. Say the action
-explicitly — the engine will not guess, and rejects a `'play'` that is illegal.
+**Adding a computer in JavaScript** — add an entry to `COMPUTERS` in
+`computers.js` with a `decide(view)` returning `{ card, action }`, action being
+`'play'` or `'discard'`. `view` gives the hand, piles, pool, the legally playable
+subset, and an rng; legality, drawing and scoring are handled for you. Say the
+action explicitly — the engine will not guess, and rejects a `'play'` that is
+illegal.
+
+**Adding one without JavaScript** — **Build a computer**, below.
+
+## Build a computer
+
+A button in the Computers controls opens an editor where you write a computer in
+a small language shaped like Python. Saved computers join the picker and the
+table and are measured by the same runner as the built-in five. They live in
+`localStorage`, and can be named, edited and deleted.
+
+### The one idea
+
+A `for` loop does **not** walk the cards one at a time. It holds a **set** of
+candidates, and every line inside narrows it:
+
+```
+for card in hand:                    # the set starts as your whole hand
+    if change in potential min:      # narrowed to the single cheapest card
+        play                         # play what is left
+```
+
+That is Lowest, and it reads as what it does. Walking one card at a time could
+not express it: *is this card the minimum?* is a question about the whole set,
+not about one card.
+
+Under set semantics `if` keeps what passes and hands what failed to `elif` /
+`else`; `min` / `max` keep the single best card; `random` keeps one at random;
+`play` and `discard` act on the set and end the turn.
+
+### The vocabulary
+
+| | |
+|---|---|
+| **loops** | `for card in hand:` · `for card in playable:` |
+| **branches** | `if … :` · `elif … :` · `else:` |
+| **selectors** | `<value> min` · `<value> max` · `random` |
+| **comparisons** | `<value>` `< <= > >= == !=` `<number>`, joined with `and` / `or` (left to right, no brackets) |
+| **commands** | `play` · `discard` |
+| **per-card values** | `change in potential` · `potential` · `same color in hand` · `pile size` · `card num` · `card color` |
+| **position values** | `proj turns` · `deck` · `hand` / `hand size` · `open colors` · `opphand` · `rand` |
+
+The reference column on the page carries the same list with a line on each.
+
+Wager Open, the strongest built-in, is four lines:
+
+```
+for card in playable:
+    if pile size > 0 or card num == 0:
+        if change in potential min:
+            play
+for card in hand:
+    if change in potential min:
+        discard
+```
+
+### Rules worth knowing
+
+- **Editing is Python-shaped.** Enter keeps your indent and adds a level after a
+  line ending in `:`; Tab indents, Shift+Tab and Backspace take a level off.
+- **Card values need a loop.** `card num` outside a `for` is a compile error
+  with the line number, not a mystery 3,000 games later.
+- **Selectors don't mix with `and`/`or`.** "the smallest card AND bigger than 5"
+  has no answer that is still a single choice, so it is refused rather than
+  guessed at.
+- **`play` is skipped, never fatal.** If nothing in the narrowed set can legally
+  be played, the statement does nothing and the program carries on — an illegal
+  play would otherwise throw and kill the whole run.
+- **`rand` is rolled once per line**, so `if rand < 0.3:` is a coin flip for that
+  branch rather than a random filter of your hand. `random` is the per-card one.
+- **Falling off the end is counted.** A program that says nothing about a
+  position gets the plainest legal move, and **Test** reports what share of turns
+  went that way — which is how you find out a rule you thought was doing the work
+  never fires.
+- **Saving resets the run counts**, because every row of the table is a count of
+  games and mixing a newcomer's 200 in with everyone else's 3,000 would put two
+  experiments in one table.
 
 ## Layout of the code
 
@@ -255,6 +332,7 @@ explicitly — the engine will not guess, and rejects a `'play'` that is illegal
 | `lab.js` | game loop, offline opponent, reveals, potential |
 | `stats.js` | the dealing-trials section |
 | `computers.js` | the computers and the solitaire game they're tested on |
+| `builder.js` | the build-a-computer language and its page |
 | `vendor/styles.css`, `vendor/src/*.js` | the live Venture client's presentation stack, unchanged apart from two lines |
 | `simple.html` | the earlier standalone Venture Lab (self-contained, own renderer) |
 

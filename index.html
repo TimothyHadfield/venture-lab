@@ -146,6 +146,61 @@ table.st tr.tot td.g{font-weight:700;color:var(--gold,#d4a843)}
 #lab-stats select{font:inherit;font-size:.9rem;color:var(--parchment,#e8dcc0);
   background:rgba(255,255,255,.06);border:1px solid rgba(212,168,67,.32);border-radius:6px;padding:4px 8px}
 #lab-cpu-prog{display:block;height:100%;width:0;background:var(--gold,#d4a843);transition:width .1s linear}
+
+/* ---- Build a computer ----------------------------------------------------
+   Same furniture as the statistics section (it is the same kind of page), plus
+   the editor and the reference column. */
+#lab-build{
+  position:fixed;inset:44px 0 0 0;z-index:4000;overflow:auto;
+  background:var(--felt,#1a0f0a);color:var(--parchment,#e8dcc0);
+  font-family:'Crimson Pro',Georgia,serif;
+}
+#lab-build .wrap{max-width:1150px;margin:0 auto;padding:22px 18px 60px}
+#lab-build h1{font-family:'Cinzel Decorative','Cinzel',serif;color:var(--gold,#d4a843);
+  font-size:1.6rem;margin:0 0 6px;letter-spacing:.03em}
+#lab-build h2{font-family:'Cinzel',Georgia,serif;color:var(--gold,#d4a843);
+  font-size:1.05rem;margin:26px 0 8px;letter-spacing:.03em}
+#lab-build h3{font-family:'Cinzel',Georgia,serif;color:var(--gold,#d4a843);
+  font-size:.9rem;margin:16px 0 6px;letter-spacing:.03em}
+#lab-build .lede{margin:0 0 18px;max-width:78ch;line-height:1.55;opacity:.85}
+#lab-build .ctrls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+#lab-build label{font-size:.9rem;opacity:.85}
+#lab-build input[type=text]{font:inherit;width:200px;color:var(--parchment,#e8dcc0);
+  background:rgba(255,255,255,.06);border:1px solid rgba(212,168,67,.32);border-radius:6px;padding:3px 8px}
+#lab-build button{font:inherit;font-size:.9rem;color:var(--parchment,#e8dcc0);
+  background:rgba(255,255,255,.06);border:1px solid rgba(212,168,67,.32);
+  border-radius:6px;padding:3px 10px;cursor:pointer}
+#lab-build button:hover{border-color:var(--gold,#d4a843)}
+#lab-build button.primary{background:var(--gold,#d4a843);border-color:var(--gold,#d4a843);color:#241606;font-weight:600}
+#lab-build button.danger{color:var(--danger,#c0605a)}
+#lab-build button.back{margin-bottom:14px}
+#lab-build code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.86em;
+  background:rgba(255,255,255,.07);border-radius:3px;padding:0 4px}
+.bc-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;align-items:start}
+@media (max-width:900px){.bc-grid{grid-template-columns:minmax(0,1fr)}}
+#lab-build-code{
+  width:100%;min-height:340px;resize:vertical;tab-size:4;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.92rem;line-height:1.5;
+  color:var(--parchment,#e8dcc0);background:rgba(0,0,0,.32);
+  border:1px solid rgba(212,168,67,.32);border-radius:8px;padding:10px 12px;
+}
+#lab-build-code:focus{outline:none;border-color:var(--gold,#d4a843)}
+.bc-status{min-height:1.4em;margin:8px 0 0;font-size:.9rem;line-height:1.5;opacity:.85}
+.bc-status.ok{color:var(--gold-bright,#f0c860)}
+.bc-status.bad{color:var(--danger,#c0605a)}
+.bc-item{display:flex;align-items:center;gap:10px;padding:7px 0;
+  border-bottom:1px solid rgba(255,255,255,.06);font-size:.92rem}
+.bc-item.on b{color:var(--gold-bright,#f0c860)}
+.bc-item .bc-act{margin-left:auto;display:flex;gap:6px}
+.bc-item .bad{color:var(--danger,#c0605a);font-size:.82rem}
+.bc-ref{font-size:.86rem;line-height:1.5;background:rgba(0,0,0,.22);
+  border:1px solid rgba(212,168,67,.18);border-radius:8px;padding:4px 14px 14px}
+.bc-ref dl{margin:0 0 4px}
+.bc-ref dt{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.84rem;
+  color:var(--gold-bright,#f0c860);margin-top:8px}
+.bc-ref dd{margin:1px 0 0;opacity:.8}
+.bc-ref ul{margin:4px 0 0;padding-left:18px;opacity:.8}
+.bc-ref li{margin:4px 0}
 .cpu-card{border:1px solid rgba(212,168,67,.22);border-radius:10px;padding:14px 16px;margin:14px 0;
   background:rgba(255,255,255,.025)}
 .cpu-h{font-family:'Cinzel',Georgia,serif;font-size:1.05rem;color:var(--gold,#d4a843);
@@ -306,11 +361,43 @@ table.st tr.tot td.g{font-weight:700;color:var(--gold,#d4a843)}
       <button id="lab-cpu-run" class="primary">Run games</button>
       <button id="lab-cpu-stop" style="display:none">Stop</button>
       <button id="lab-cpu-reset">Reset</button>
+      <button id="lab-cpu-build">Build a computer</button>
       <span id="lab-cpu-count" class="count">0 games</span>
       <span class="progwrap"><span id="lab-cpu-prog"></span></span>
     </div>
 
     <div id="lab-cpu-body"></div>
+  </div>
+</div>
+
+<!-- BUILD A COMPUTER — write one in code. Hidden until opened from Computers. -->
+<div id="lab-build" style="display:none">
+  <div class="wrap">
+    <button id="lab-build-back" class="back">&larr; Statistics</button>
+    <h1>Build a computer</h1>
+    <p class="lede">Write a computer in a small language shaped like Python. A <code>for</code>
+      loop holds a <b>set</b> of cards and every line inside narrows it — so
+      <code>if change in potential min:</code> leaves the one card that costs the least, and
+      <code>play</code> plays it. Saved computers join the list in the Computers section and are
+      measured by the same runner as the built-in ones.</p>
+
+    <div class="bc-grid">
+      <div class="bc-main">
+        <div class="ctrls">
+          <label>Name <input id="lab-build-name" type="text" placeholder="My computer" maxlength="40"></label>
+          <button id="lab-build-save" class="primary">Save</button>
+          <button id="lab-build-test">Test 200 games</button>
+          <button id="lab-build-new">New</button>
+        </div>
+        <textarea id="lab-build-code" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+        <div id="lab-build-status" class="bc-status"></div>
+
+        <h2>Saved computers</h2>
+        <div id="lab-build-list"></div>
+      </div>
+
+      <div class="bc-ref" id="lab-build-ref"></div>
+    </div>
   </div>
 </div>
 
@@ -340,5 +427,6 @@ table.st tr.tot td.g{font-weight:700;color:var(--gold,#d4a843)}
 <script src="lab.js?v=DEV"></script>
 <script src="stats.js?v=DEV"></script>
 <script src="computers.js?v=DEV"></script>
+<script src="builder.js?v=DEV"></script>
 </body>
 </html>
