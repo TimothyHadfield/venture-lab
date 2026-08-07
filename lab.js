@@ -577,6 +577,79 @@ function _labPoolOf(slot, color){
 }
 
 /* ============================================================================
+   HAND ORDER — by colour potential, not by colour
+
+   The stock game groups a hand red · green · blue · white · yellow, which is
+   tidy and says nothing. Sorting by the colour's POTENTIAL instead makes the
+   hand read as a ranking: your best colour is on the left, your worst on the
+   right, so the cards you are most likely to want to throw collect at one end.
+
+   (Only *most likely* — a discard is also a gift, so the right-hand end is
+   where to look first, not a rule to follow blindly. Once the two-player
+   harness exists, "what is this worth to them" becomes a real number and the
+   right end can be checked against it.)
+
+   Both hands are sorted the same way, each by ITS OWN owner's potential: the
+   opponent's left-hand cards are the ones their position wants most, which is
+   the useful thing to see across the table.
+
+   Two different hooks, because the render stack offers two different seams:
+     - Your hand goes through CONFIG.cardSortComparator, a plain config property
+       — so overriding it needs no vendor edit, and drag-to-reorder still wins
+       over it exactly as before.
+     - The opponent's hand is drawn straight from gameState in array order, with
+       no comparator anywhere, so that array is sorted in place before each
+       render. The order of a hand array carries no game meaning (every engine
+       call finds cards by identity), so this is presentation, not state.
+   ========================================================================== */
+
+const _handRank = {};                 // slot → { colour: potential }, per render
+
+function _labRankColors(slot){
+  const rank = {};
+  for (const c of CONFIG.colors) rank[c] = labColorPotential(slot, c);
+  return rank;
+}
+
+/* Most potential first; then colour order so two equally-valued colours never
+   swap places for no reason; then value, which keeps a colour's own run in
+   ascending order the way it is played. */
+function _labHandCompare(rank, a, b){
+  const d = (rank[b.color] || 0) - (rank[a.color] || 0);
+  if (d) return d;
+  const ci = CONFIG.colors.indexOf(a.color) - CONFIG.colors.indexOf(b.color);
+  return ci !== 0 ? ci : a.value - b.value;
+}
+
+function _labSortHands(){
+  if (!gameState || !gameState.hands) return;
+  const opp = userSlot === 'player1' ? 'player2' : 'player1';
+  _handRank[userSlot] = _labRankColors(userSlot);
+  _handRank[opp] = _labRankColors(opp);
+  const oppHand = gameState.hands[opp];
+  if (Array.isArray(oppHand)) oppHand.sort((a, b) => _labHandCompare(_handRank[opp], a, b));
+}
+
+/* Ranks are refreshed once per render rather than inside the comparator: a
+   potential is a whole scan of a colour's pool, and a comparator is called
+   O(n log n) times. */
+function _labHookHandOrder(){
+  CONFIG.cardSortComparator = function(a, b){
+    return _labHandCompare(_handRank[userSlot] || {}, a, b);
+  };
+  const original = renderGame;
+  renderGame = function(){
+    _labSortHands();
+    return original.apply(this, arguments);
+  };
+  // renderGame carries state on itself (_firstRender, _snapNextRender) that both
+  // the stack and we set by NAME, so it lands on the wrapper and is read from
+  // the wrapper. Seed it from the original so the first render still snaps.
+  renderGame._firstRender = original._firstRender;
+  renderGame._snapNextRender = original._snapNextRender;
+}
+
+/* ============================================================================
    THE INFO PANEL — a readout column down the left
 
    Entries are declared here rather than in the markup, so adding one later is
@@ -1065,6 +1138,7 @@ function _labInit(){
   };
   document.getElementById('lab-ai').onchange   = (e) => { LAB.ai = e.target.value; };
 
+  _labHookHandOrder();                // hands read as a ranking, best colour left
   _labSetInfoInset();                 // reserves the left strip for the info panel
   _labSetDeckPanel(LAB.revealDeck);   // reserves the strip and sizes the board for it
   _labSyncToggles();

@@ -23,6 +23,7 @@ fans and animations. What's different:
   is pinned to its card's top strip so the overlap never hides it. The next card
   is ringed gold and tagged NEXT.
 - **Opponent's hand face-up**, in place, right way up.
+- **Hands ordered by colour potential** rather than by colour — see below.
 - **Potential** — one number under each of the ten piles (yours and theirs).
 - **Empty slots wear their colour** — an empty pile is otherwise a neutral felt
   well that says nothing about which colour belongs there, which bites hardest
@@ -124,6 +125,30 @@ position** and the game's own `drawFromDrawPile()` runs, so the normal path does
 the work — normal animation, sound, turn handoff and end-of-deck check — and the
 rest of the deck keeps its order. (That is the same mechanism, and the same
 one-line contract, as `pickdraw` in the cheat toolkit.)
+
+### Hand order
+
+The stock game groups a hand red · green · blue · white · yellow, which is tidy
+and says nothing. Here both hands are sorted by **colour potential**, best
+colour on the left, worst on the right — so a hand reads as a ranking and the
+cards you are most likely to want rid of collect at the right-hand end.
+
+Within a colour the cards stay in ascending order, and two colours of equal
+potential fall back to colour order so nothing swaps about between renders.
+
+Each hand is sorted by **its own owner's** potential, which is why the same
+colour can sit at opposite ends of the two hands: a colour you have played a 9
+in is nearly dead to you and may still be wide open for them.
+
+⚠️ Right-hand end means *cheapest to you*, not *safe to throw*. A discard is
+also a gift, and what a card is worth to the opponent is a different number that
+nothing here computes yet — the two-player harness in
+[STRATEGY.md](STRATEGY.md#5-the-structural-change-everything-else-wants) is what
+would make it real. Read the right end first, then think.
+
+Order moves as potentials move, so a card can shift between turns. That is the
+readout being live rather than a glitch. Drag-to-reorder still overrides it, as
+before.
 
 ### Potential
 
