@@ -33,7 +33,13 @@
 
 /* Potential of one colour: what that colour scores if every card still
    available to it gets played in order. `venturePotential` (lab.js) is the
-   single definition of the rule, shared with the board's readout. */
+   single definition of the rule, shared with the board's readout.
+
+   The POOL here is deck + hand, with discards excluded — where the board's
+   readout counts them. Deliberate: these computers never draw from a discard
+   pile (see the header), so a card they discard is genuinely gone to them,
+   while a player on the board can reach one. Same rule, different reachable
+   set, which is the part that belongs to the caller. */
 function potentialFor(piles, pool, color){
   return venturePotential(piles[color], pool[color]);
 }

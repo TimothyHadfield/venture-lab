@@ -30,12 +30,26 @@ Each toggle is a button in the top bar; all three are **on by default**.
 ### Potential
 
 For one colour and one player: **the score that pile would reach if that player
-received every card still in play that could legally be added to it.**
+received every card still reachable *by them* that could legally be added to
+it.**
 
-"Still in play" means the draw pile plus both hands. Cards already played or
-sitting in a discard pile are excluded — a played card is gone, and a discarded
-one is only reachable as a pile top under conditions, so counting it would
-overstate the ceiling.
+Reachable, for that player, means the draw pile, **their own hand**, and the
+colour's **discard pile**. Two things are excluded, for two different reasons:
+
+- **Cards already played** are gone for good — either side's play pile is
+  permanent.
+- **Cards in the other player's hand** are out of reach. You cannot draw what
+  someone else is holding. It may come back later (they might discard it), but
+  as the position stands it is not yours to get, and counting it would pad your
+  ceiling with their cards.
+
+Discards *do* count. A discard pile is a real source — drawing its top is half
+of the game's turn — and cards buried under the top become reachable as the pile
+is drawn down. That is a generous assumption, which is what a ceiling is for.
+
+So the two numbers under a colour are genuinely per player: each counts its own
+holder's hand, neither counts the other's. They will differ from the opening
+deal onwards.
 
 There is nothing to search: a venture ascends and values are unique per colour,
 so every number above the pile's top can be added, and wagers only while the
@@ -43,13 +57,18 @@ pile has no numbers yet.
 
 Reading it:
 
-- It starts at **+156** everywhere — the whole colour is still available, and
-  `(2+…+10 − 20) × 4 wagers + 20 bonus` is the theoretical maximum venture.
+- **+156** is the ceiling's own ceiling — the whole colour available to one
+  player, `(2+…+10 − 20) × 4 wagers + 20 bonus`. You only see it for a colour
+  the opponent holds none of; each card in their hand takes a bite out of your
+  number and leaves theirs alone.
 - It falls as cards leave play, and **collapses when you play high**: put a 9
   down and everything below 9 is locked out of that pile forever. The gap
   between a pile's score and its potential is the headroom you still have.
-- It is a **ceiling, not a forecast** — it assumes one player gets every
-  remaining card of that colour, which never happens. Both players can show a
+- **A card moving from their hand to a discard pile RAISES your potential** —
+  it went from unreachable to reachable. That is the readout working, not a
+  glitch, and it is worth watching: it is the moment a colour opens up for you.
+- It is a **ceiling, not a forecast** — it assumes that player gets every
+  card still reachable to them, which never happens. Both players can show a
   high number for the same colour; they are competing for the same cards.
 
 ## Dealing statistics
@@ -140,6 +159,12 @@ usually gets filled.
 With no opponent, the cards still unseen are exactly deck + hand, so a computer
 can know that *set* (not its order) just by tracking what has been played and
 discarded. `potentialFor` uses only that, so nothing peeks at the deck order.
+
+Its pool is deck + hand — **discards excluded**, unlike the board's readout
+above. That is not an inconsistency: these computers never draw from a discard
+pile, so a card they discard really is gone to them. Both call the same
+`venturePotential` rule; what differs is which cards each says are reachable,
+which is exactly the thing that should be context-dependent.
 
 "Play what costs the least potential" turns out to encode more than it looks:
 playing any number locks out every remaining wager of that colour, so a red 2

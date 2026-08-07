@@ -268,12 +268,26 @@ function _labAITurn(){
    POTENTIAL — the analysis feature
 
    For one colour and one player: the score that pile would reach if that
-   player received EVERY card still in play that could legally be added to it.
+   player received EVERY card still REACHABLE BY THEM that could legally be
+   added to it.
 
-   "Still in play" = the draw pile + both players' hands. Cards already played
-   (either side) or sitting in a discard pile are excluded: a played card is
-   gone for good, and a discarded one is only reachable as a pile top under
-   conditions, so counting it would overstate the ceiling.
+   Reachable, for that player = the draw pile + their OWN hand + the colour's
+   discard pile. Two exclusions, for two different reasons:
+
+     - **Played cards are gone.** Either side's play pile is permanent.
+     - **The opponent's hand is out of reach.** You cannot draw a card someone
+       else is holding. It may come back into play later — they might discard
+       it — but from where the position stands now it is not yours to get, and
+       counting it inflates your ceiling with their cards.
+
+   Discards DO count: a discard pile is a real source (drawing its top is half
+   the game's turn), and cards buried under the top become reachable as the
+   pile is drawn down. It is a generous assumption, but generosity is what a
+   ceiling is for — the number answers "how far could this colour possibly go
+   for me", not "how far will it".
+
+   So the two numbers under a colour are now genuinely per player: each counts
+   its own holder's hand and neither counts the other's.
 
    The legal additions are forced by the rules, so there is nothing to search:
    a venture ascends, so every number above the pile's top can be added (values
@@ -300,10 +314,13 @@ function venturePotential(pile, pool){
 
 function labColorPotential(slot, color){
   const pile = getCards(gameState, 'playPiles', slot, color);
+  // The pool is built from THIS slot's point of view: the deck and the discards
+  // are open to both, the hand is not. (The colour's own discard pile is the
+  // only one that can hold cards of this colour.)
   const pool = []
     .concat(getCards(gameState, 'drawPile'))
-    .concat(getCards(gameState, 'hands', 'player1'))
-    .concat(getCards(gameState, 'hands', 'player2'))
+    .concat(getCards(gameState, 'hands', slot))
+    .concat(getCards(gameState, 'discards', color))
     .filter(c => c.color === color);
   return venturePotential(pile, pool);
 }
