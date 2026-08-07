@@ -401,6 +401,60 @@ function _labRenderPotential(){
 on('rendered', _labRenderPotential);
 
 /* ============================================================================
+   EMPTY SLOT COLOURS
+
+   An empty pile is a neutral felt well: nothing on the board says which colour
+   it belongs to. That is fine once the column order is in your fingers and a
+   nuisance before then — and it bites hardest exactly where it matters, on a
+   colour you hold nothing of. So every EMPTY slot is ringed and tinted in its
+   own colour. Occupied slots are left alone: the cards sitting on them already
+   answer the question, and ten coloured rings on a full board is noise.
+
+   Applies to both play rows and the discard row. The draw pile and the live-
+   score column are not colours, and are skipped by looping over CONFIG.colors
+   (they are the trailing columns in their rows).
+
+   Re-applied on every 'rendered', because renderBoardStructure rewrites those
+   rows' innerHTML and throws away anything we set — the same reason the
+   potential layer redraws rather than persisting.
+   ========================================================================== */
+function _labColorEmptySlots(){
+  if (!gameState) return;
+  const oppSlot = userSlot === 'player1' ? 'player2' : 'player1';
+  const rows = [
+    ['play_user',    color => getCards(gameState, 'playPiles', userSlot, color)],
+    ['play_opp',     color => getCards(gameState, 'playPiles', oppSlot,  color)],
+    ['discard_draw', color => getCards(gameState, 'discards', color)],
+  ];
+
+  for (const [rowId, cardsOf] of rows){
+    const row = document.getElementById(rowId);
+    if (!row) continue;
+    const cols = row.querySelectorAll('.card-col');
+    CONFIG.colors.forEach((color, ci) => {
+      const slot = cols[ci] && cols[ci].querySelector('.pile-space');
+      if (!slot) return;
+      const hex = CONFIG.colorHex[color];
+      if (!hex || cardsOf(color).length > 0){
+        slot.style.outline = ''; slot.style.outlineOffset = ''; slot.style.backgroundColor = '';
+        return;
+      }
+      // outline, not border or box-shadow: the well's sunken felt look IS a stack
+      // of inset shadows, and its size comes from the card metrics — an outline
+      // disturbs neither, and a negative offset pulls the ring inside the well's
+      // own edge so it never bleeds into the next column.
+      slot.style.outline = 'calc(var(--border-w) * 2) solid ' + hex;
+      slot.style.outlineOffset = 'calc(var(--border-w) * -2)';
+      // A wash rather than a fill: enough to read peripherally, dark enough that
+      // the felt texture over it still shows and an empty slot still looks empty.
+      slot.style.backgroundColor = 'color-mix(in srgb, ' + hex + ' 16%, var(--felt-base))';
+    });
+  }
+}
+
+on('rendered', _labColorEmptySlots);
+
+/* ============================================================================
    THE DECK PANEL — draw pile as COLOUR COLUMNS on the right
 
    A port of the xray panel from the cheat toolkit (cheats.js `_xrayUpdate`),

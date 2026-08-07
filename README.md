@@ -24,6 +24,12 @@ fans and animations. What's different:
   is ringed gold and tagged NEXT.
 - **Opponent's hand face-up**, in place, right way up.
 - **Potential** — one number under each of the ten piles (yours and theirs).
+- **Empty slots wear their colour** — an empty pile is otherwise a neutral felt
+  well that says nothing about which colour belongs there, which bites hardest
+  on the colours you hold nothing of. Every empty slot, on both play rows and
+  the discard row, is ringed and washed in its own colour; slots with cards on
+  them are left plain, since the cards already answer it. Always on, not a
+  toggle.
 
 Each toggle is a button in the top bar; all three are **on by default**.
 
