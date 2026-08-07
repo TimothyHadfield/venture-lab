@@ -305,32 +305,62 @@ function _labAITurn(){
 
 /* The rule itself, as a pure function of a pile and the cards still available
    to it. Shared with the computers in computers.js, so "potential" means one
-   thing across the whole site and is defined in exactly one place. */
-function venturePotential(pile, pool){
+   thing across the whole site and is defined in exactly one place.
+
+   `maxAdds` is optional and is what makes REACHABLE potential (below) possible:
+   with a budget, you can no longer play everything, so the question changes from
+   "what does this colour come to" into "what is the best I could get out of it
+   in N more plays". Left out, the function is exactly what it always was. */
+function venturePotential(pile, pool, maxAdds){
   const hasNumbers = pile.some(c => c.value > 0);
   const topValue = hasNumbers ? pile[pile.length - 1].value : 0;
 
-  const additions = [];
+  const wagers = [], numbers = [];
   if (!hasNumbers){                                    // wagers precede all numbers
-    for (const c of pool) if (c.value === 0) additions.push(c);
+    for (const c of pool) if (c.value === 0) wagers.push(c);
   }
-  for (const c of pool) if (c.value > topValue) additions.push(c);
-  additions.sort((a, b) => a.value - b.value);
+  for (const c of pool) if (c.value > topValue) numbers.push(c);
 
-  return MATH.scorePlayPile(pile.concat(additions));
+  // No budget: the original rule, untouched — every legal addition goes on,
+  // wagers first.
+  if (!(maxAdds >= 0)){
+    const additions = wagers.concat(numbers).sort((a, b) => a.value - b.value);
+    return MATH.scorePlayPile(pile.concat(additions));
+  }
+
+  // Budgeted. For a fixed number of number-cards the best set is simply the
+  // highest ones (any set of them plays in ascending order, and the 8+ bonus
+  // depends on the COUNT, which the budget already fixes) — so the only real
+  // question is how many of the slots to spend on wagers, and that is small
+  // enough to try exhaustively.
+  //
+  // ⚠️ The budgeted branch runs even when the budget does not bind, and that is
+  // deliberate: it also lets a colour DECLINE cards, which the all-in rule
+  // cannot. Falling back to the all-in rule at the boundary made the number
+  // jump — an unstarted colour holding a wager and a 3 read 0 with one turn left
+  // and −34 with two, because at two the all-in rule took over and played a
+  // wager onto a loss. Reachable now only ever rises with the budget.
+  //
+  // The consequence to know: an UNSTARTED colour is never reachable-negative,
+  // because not opening it is always available. A started one can be, since the
+  // −20 is already spent — which is exactly what an opening gate wants to test.
+  const cap = Math.min(Math.floor(maxAdds), wagers.length + numbers.length);
+  const desc = numbers.slice().sort((a, b) => b.value - a.value);
+  let best = MATH.scorePlayPile(pile);
+  for (let w = 0; w <= Math.min(wagers.length, cap); w++){
+    const take = desc.slice(0, cap - w).sort((a, b) => a.value - b.value);
+    const score = MATH.scorePlayPile(pile.concat(wagers.slice(0, w)).concat(take));
+    if (score > best) best = score;
+  }
+  return best;
 }
 
+/* The pool is built from THIS slot's point of view: the deck and the discards
+   are open to both, the hand is not. (_labPoolOf, below the potential section,
+   is that rule in one place — the reachable readout uses the same pool, so the
+   two numbers are always about the same set of cards.) */
 function labColorPotential(slot, color){
-  const pile = getCards(gameState, 'playPiles', slot, color);
-  // The pool is built from THIS slot's point of view: the deck and the discards
-  // are open to both, the hand is not. (The colour's own discard pile is the
-  // only one that can hold cards of this colour.)
-  const pool = []
-    .concat(getCards(gameState, 'drawPile'))
-    .concat(getCards(gameState, 'hands', slot))
-    .concat(getCards(gameState, 'discards', color))
-    .filter(c => c.color === color);
-  return venturePotential(pile, pool);
+  return venturePotential(_labPileOf(slot, color), _labPoolOf(slot, color));
 }
 
 /* --- render the potential row under each pile ---------------------------
@@ -491,11 +521,68 @@ function labProjectedTurns(slot){
 }
 
 /* ============================================================================
+   REACHABLE POTENTIAL, and what a colour still needs
+
+   Potential answers "how far could this colour go", and answers it as if you
+   had all the time in the world. You do not: the deck is a clock, and a colour
+   needing six more cards with three plays left is not worth what potential says
+   it is. REACHABLE potential is the same rule under your actual turn budget,
+   and it is the number a decision late in the game should be made against.
+
+   The gap between the two IS the time pressure, made visible.
+
+   ⚠️ Reachable can come out ABOVE potential in one odd case, and it is not a
+   bug: potential plays every wager it can, and on a colour whose numbers cannot
+   clear the 20, wagers multiply a loss. Under a budget the wagers are optional,
+   so it declines them. Where that happens, potential is being pessimistic about
+   a colour you would never play that way.
+   ========================================================================== */
+function labReachablePotential(slot, color){
+  return venturePotential(_labPileOf(slot, color), _labPoolOf(slot, color),
+                          labProjectedTurns(slot));
+}
+
+/* Points of NUMBER cards a colour still needs before it is worth anything —
+   the "-20 to break even" every strategy discussion turns on. Zero once the
+   venture is in profit; null when the colour has not been started, since there
+   is nothing to break even on yet. */
+function labBreakEvenGap(slot, color){
+  const pile = _labPileOf(slot, color);
+  if (!pile.length) return null;
+  let sum = 0;
+  for (const c of pile) sum += c.value;
+  return Math.max(0, (CONFIG.scoring ? CONFIG.scoring.baseCost : 20) - sum);
+}
+
+/* Cards in your hand that your own play piles have already climbed past. They
+   can never be played again, so throwing one away costs you nothing — which
+   makes them the currency of patience: while you hold one, you never have to
+   make a play that locks out your own low cards (STRATEGY.md §2.6). The
+   Patient's whole edge is spending these instead of playing badly. */
+function labDeadCards(slot){
+  const hand = getCards(gameState, 'hands', slot);
+  let n = 0;
+  for (const c of hand) if (!canPlayOnPlayPile(c, _labPileOf(slot, c.color))) n++;
+  return n;
+}
+
+function _labPileOf(slot, color){ return getCards(gameState, 'playPiles', slot, color); }
+
+function _labPoolOf(slot, color){
+  return []
+    .concat(getCards(gameState, 'drawPile'))
+    .concat(getCards(gameState, 'hands', slot))
+    .concat(getCards(gameState, 'discards', color))
+    .filter(c => c.color === color);
+}
+
+/* ============================================================================
    THE INFO PANEL — a readout column down the left
 
    Entries are declared here rather than in the markup, so adding one later is
-   an object in this list: a label, the value, and the one line of explanation
-   that stops the number being a mystery. `value` is called on every render.
+   an object in this list: a label, the one line of explanation that stops the
+   number being a mystery, and either a `value()` for a single number or a
+   `table()` for a row per colour. Both are called on every render.
    ========================================================================== */
 const LAB_INFO = [
   {
@@ -504,7 +591,40 @@ const LAB_INFO = [
     help:  'plays you have left, if every draw from here comes from the deck',
     value: () => labProjectedTurns(userSlot),
   },
+  {
+    key:   'dead-cards',
+    label: 'Free discards',
+    help:  'cards your own piles have climbed past. They cost nothing to throw, '
+         + 'so while you hold one you never have to make a play that locks out '
+         + 'your own low cards.',
+    value: () => labDeadCards(userSlot),
+  },
+  {
+    key:   'reachable',
+    label: 'Reachable',
+    help:  'the most each colour can still be worth in the turns you have left. '
+         + 'The board shows potential; this is potential you have time for.',
+    table: () => ({
+      head: ['', 'reach'],
+      rows: CONFIG.colors.map(c => [c, _labNum(labReachablePotential(userSlot, c))]),
+    }),
+  },
+  {
+    key:   'break-even',
+    label: 'To break even',
+    help:  'number-card points a started venture still needs to clear its −20. '
+         + '“—” means the colour is unstarted, or already in profit.',
+    table: () => ({
+      head: ['', 'need'],
+      rows: CONFIG.colors.map(c => {
+        const g = labBreakEvenGap(userSlot, c);
+        return [c, g === null || g === 0 ? '—' : String(g)];
+      }),
+    }),
+  },
 ];
+
+function _labNum(n){ return (n > 0 ? '+' : '') + n; }
 
 let _infoEl = null;
 
@@ -518,15 +638,31 @@ function _labInfoPanel(){
   if (!gameState) return;
   const rows = _infoEl.querySelector('#lab-info-rows');
   rows.innerHTML = LAB_INFO.map(item => {
-    let v;
+    let body;
     // An entry that throws must not take the board's render down with it.
-    try { v = item.value(); } catch (e) { v = '—'; }
+    try { body = item.table ? _labInfoTable(item.table()) : '<span class="v">' + item.value() + '</span>'; }
+    catch (e){ body = '<span class="v">—</span>'; }
     return '<div class="lab-info-row" data-key="' + item.key + '">'
          + '<span class="k">' + item.label + '</span>'
-         + '<span class="v">' + v + '</span>'
+         + body
          + (item.help ? '<span class="h">' + item.help + '</span>' : '')
          + '</div>';
   }).join('');
+}
+
+/* A per-colour block: each colour's name written in its own colour, then its
+   numbers. The colour is carried by the label rather than a swatch, so the
+   panel reads the same way the deck columns do. */
+function _labInfoTable(t){
+  const head = '<tr>' + t.head.map(h => '<th>' + h + '</th>').join('') + '</tr>';
+  const body = t.rows.map(r => {
+    const color = r[0];
+    const hex = (CONFIG.colorHex && CONFIG.colorHex[color]) || '#888';
+    const name = (CONFIG.colorLabels && CONFIG.colorLabels[color]) || color;
+    return '<tr><td class="c" style="color:' + hex + '">' + name + '</td>'
+         + r.slice(1).map(v => '<td class="n">' + v + '</td>').join('') + '</tr>';
+  }).join('');
+  return '<table class="lab-info-t">' + head + body + '</table>';
 }
 
 /* The same number beside the draw pile, on its own — you read it while looking

@@ -64,6 +64,44 @@ function discardCost(piles, pool, card){
   return before - venturePotential(piles[color], pool2);
 }
 
+/* ── REACHABLE potential — the same rule under a turn budget ────────────────
+   `potentialFor` values a colour as if you could play every card of it that is
+   still available. You cannot: the deck is a clock. Reachable potential is that
+   same rule capped at the plays you actually have left, which is what makes a
+   computer stop valuing cards it will never get down. See STRATEGY.md §6.
+
+   In solitaire one deck card comes off per turn, so turns left = deck size, and
+   the deck is the pool minus your hand. */
+function turnsLeft(hand, pool){
+  let n = 0;
+  for (const c of CONFIG.colors) n += pool[c].length;
+  return n - hand.length;
+}
+
+function reachableFor(piles, pool, color, turns){
+  return venturePotential(piles[color], pool[color], turns);
+}
+
+/* What a move costs in reachable terms — and, unlike playCost/discardCost, on
+   ONE scale for plays and discards alike. Both consume a turn, so both are
+   priced against the same "before" with a budget one turn smaller afterwards.
+   That is what lets a computer decide that every play available is worse than
+   throwing something away, instead of being told to play whenever it legally
+   can. */
+function reachableCost(piles, pool, card, turns, action){
+  const color = card.color;
+  const before = reachableFor(piles, pool, color, turns);
+  const pool2 = {}; pool2[color] = pool[color].filter(c => c !== card);
+  const piles2 = {}; piles2[color] = action === 'play' ? piles[color].concat([card]) : piles[color];
+  return before - reachableFor(piles2, pool2, color, turns - 1);
+}
+
+/* How much potential The Patient will pay for a play while it still has a free
+   card to throw instead. Swept over paired shuffles: 0 → +108 against Wager
+   Open, 20 → +115, 25 → +115, 30 → +113, 40 → +96. Flat across the middle, so
+   25 is the centre of the plateau rather than a fitted number. */
+const PATIENCE = 25;
+
 /* Deterministic tie-break so a computer's play is reproducible: cheapest cost,
    then lowest card (wagers are 0, so they lead), then colour order. */
 function _pickCheapest(cards, costOf){
@@ -152,6 +190,67 @@ const COMPUTERS = {
         for (const col of CONFIG.colors) if (view.piles[col].length > 0) open++;
         return open < maxOpen;
       });
+    },
+  },
+
+  /* ── THE PATIENT ─────────────────────────────────────────────────────────
+     The strongest computer here by a distance, and the two rules that make it
+     so are both borrowed from human strategy writing (STRATEGY.md §2.6, §2.2).
+
+     1. PATIENCE. A venture only ascends, so playing a 7 over a held 2 kills the
+        2 — and every 3, 4, 5 and 6 still to come. Lowest and Wager Open have no
+        choice: they play whenever a legal play exists, so they lock themselves
+        out early and finish with short ventures. This one refuses: while it
+        still holds a card that costs NOTHING to throw away (one the pile has
+        already climbed past — a dead card), it will not make a play that costs
+        more than PATIENCE potential. It spends the dead card instead and waits
+        for the low cards to come to it.
+     2. OPEN ANYTHING IT CAN PAY FOR. Wager Open never opens a colour without a
+        multiplier, which strands every card of a colour it drew no wager in.
+        This one opens with a number too, as long as the colour can still finish
+        above zero in the turns left.
+
+     Everything is priced in REACHABLE potential, so a colour is only worth what
+     there is time to collect.
+
+     ⚠️ Measured in SOLITAIRE, where every card eventually reaches you and a
+     discard costs nothing because there is nobody to receive it. Patience is
+     close to free under those rules and would not be against a real opponent —
+     see STRATEGY.md §4 and §7.
+     ────────────────────────────────────────────────────────────────────────── */
+  patient: {
+    name: 'The Patient',
+    blurb: 'Never locks itself out. While it still holds a dead card it can throw ' +
+           'for free, it refuses any play that would cost real potential — so the ' +
+           'low cards it is waiting for still fit when they arrive. It opens a ' +
+           'colour with a number as well as a wager, provided the colour can still ' +
+           'finish above zero in the turns left, and prices everything by what ' +
+           'there is time to collect. Lands an 8+ venture in 99% of games, against ' +
+           '31% for Wager Open.',
+    decide(view){
+      const turns = Math.max(1, turnsLeft(view.hand, view.pool));
+
+      const allowed = view.playable.filter(c => {
+        if (view.piles[c.color].length > 0) return true;      // already running
+        if (c.value === 0) return true;                       // a wager opens anything
+        // A NUMBER may open a colour only if it can still be made to pay.
+        const piles2 = {}; piles2[c.color] = [c];
+        const pool2  = {}; pool2[c.color]  = view.pool[c.color].filter(x => x !== c);
+        return reachableFor(piles2, pool2, c.color, turns - 1) >= 0;
+      });
+
+      const dump = _pickCheapest(view.hand, c => reachableCost(view.piles, view.pool, c, turns, 'discard'));
+      const dumpCost = dump ? reachableCost(view.piles, view.pool, dump, turns, 'discard') : Infinity;
+
+      if (allowed.length){
+        const play = _pickCheapest(allowed, c => reachableCost(view.piles, view.pool, c, turns, 'play'));
+        const cost = reachableCost(view.piles, view.pool, play, turns, 'play');
+        // The patience rule. Both halves matter: an expensive play is only worth
+        // refusing if there is something FREE to throw instead, or it would
+        // stall for ever holding cards it can never afford to play.
+        if (!(cost > PATIENCE && dumpCost <= 0)) return { action: 'play', card: play };
+      }
+      return { action: 'discard', card: dump };
     },
   },
 

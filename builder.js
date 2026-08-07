@@ -34,8 +34,16 @@
 const BUILD_VALUES = {
   'change in potential': { card: true, get: (x, c) => x.playCost(c),
     doc: 'how much potential that colour loses if you play this card (low = cheap)' },
+  'change in reachable': { card: true, get: (x, c) => x.reachCost(c),
+    doc: 'the same, but counting only what there is time to play. What The Patient uses.' },
   'potential':           { card: true, get: (x, c) => x.potential(c.color),
     doc: "the card's colour potential right now" },
+  'reachable potential': { card: true, get: (x, c) => x.reachable(c.color),
+    doc: 'potential capped by the turns you have left — potential you have time for' },
+  'break even gap':      { card: true, get: (x, c) => x.breakEven(c.color),
+    doc: 'number points this colour still needs to clear its −20 (0 once in profit)' },
+  'dead cards':          { card: false, get: x => x.deadCards(),
+    doc: 'cards in hand your own piles have climbed past — free to throw away' },
   'same color in hand':  { card: true, get: (x, c) => x.sameColor(c.color),
     doc: 'how many cards of this colour you hold (including this one)' },
   'pile size':           { card: true, get: (x, c) => x.piles[c.color].length,
@@ -371,6 +379,21 @@ function buildCompile(source){
       legal: c => view.playable.indexOf(c) >= 0,
       potential: color => potentialFor(view.piles, view.pool, color),
       playCost: card => playCost(view.piles, view.pool, card),
+      // The turn-budgeted family. `turns` is computed just above, so a program
+      // gets the same numbers The Patient decides on.
+      reachable: color => reachableFor(view.piles, view.pool, color,
+                                       Math.max(1, poolN - view.hand.length)),
+      reachCost: card => reachableCost(view.piles, view.pool, card,
+                                       Math.max(1, poolN - view.hand.length), 'play'),
+      breakEven: color => {
+        const pile = view.piles[color];
+        if (!pile.length) return 0;
+        let sum = 0;
+        for (const c of pile) sum += c.value;
+        return Math.max(0, CONFIG.scoring.baseCost - sum);
+      },
+      deadCards: () => view.hand.reduce((n, c) =>
+        n + (view.playable.indexOf(c) < 0 ? 1 : 0), 0),
       sameColor: color => view.hand.reduce((n, c) => n + (c.color === color ? 1 : 0), 0),
       openColors: () => CONFIG.colors.reduce((n, c) => n + (view.piles[c].length ? 1 : 0), 0),
     };

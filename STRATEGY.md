@@ -232,6 +232,38 @@ thing we could build is a **two-player harness**, because most of the interestin
 advice in Part 1 (denial, baiting, tempo racing, blocking) is invisible to a
 solitaire test by construction.
 
+### 4a. Update — the folklore's gap rule is worth more than everything else here
+
+Acting on §2.6 (don't play the 7 over your held 2) produced **The Patient**:
++126.3 ± 6.4 against Wager Open on paired shuffles, winning 98% of them, median
+220 against 98. It lands an 8+ venture in **99%** of games where Wager Open
+manages 29%.
+
+The rule that does it: **while you hold a card your own pile has already climbed
+past — a dead card, free to throw — never make a play that costs more than 25
+potential.** Every previous computer here plays whenever it legally can, so it
+locks itself out early and finishes with short ventures. Patience is worth +115
+of that margin on its own; opening colours with numbers when they can still pay
+adds +13; pricing in reachable potential rather than plain potential adds ~18.
+
+Two caveats, in the same spirit as §4:
+
+- **Solitaire makes patience unusually cheap.** Every card eventually reaches
+  you and a discard costs nothing because nobody receives it. Against a real
+  opponent, waiting means giving cards away and you only see half the deck.
+- **A 99% bonus rate is itself a warning.** The literature calls the 8-card
+  bonus rare. That our best computer collects it almost every game says the
+  solitaire variant is a substantially easier game than the one the strategy
+  writing is about.
+
+And a negative result worth as much as the positive one: pricing plays and
+discards on **one** scale and taking the cheapest move — the obvious
+generalisation, and my first attempt — scores **39**, worse than plain Lowest.
+Potential measures what a position could still become and gives no credit for
+banking points, so between "play" and "discard" it is not merely weak but
+misleading. The built-ins' hard *play if you legally can* is load-bearing; the
+patience rule works because it overrides that only when the alternative is free.
+
 Two smaller things the lab already knows that the literature does not discuss:
 
 - **Dealt colour strength is wildly lopsided.** Ranked medians of the five

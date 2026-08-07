@@ -31,8 +31,11 @@ fans and animations. What's different:
   them are left plain, since the cards already answer it. Always on, not a
   toggle.
 
-- **Info panel** — a readout column down the left. One entry so far: **projected
-  turns**. The same number also sits beside the draw pile, bare.
+- **Info panel** — a readout column down the left: **projected turns** (also
+  printed bare beside the draw pile), **free discards**, and per colour both
+  **reachable** potential and what it still needs **to break even**. These are
+  the numbers The Patient decides on, so you can read the position the way it
+  does.
 - **Assistant** — a toggle that greys out the cards the ascending rule says to
   hold back, and refuses to select them.
 - **Pick draw** — a toggle: on your draw, click any card in the deck panel and
@@ -60,7 +63,32 @@ played this turn, your next play is a full round away and the number reflects
 that.
 
 Adding another entry to the panel is one object in `LAB_INFO` (`lab.js`): a
-label, a `value()` and a line of explanation.
+label, a line of explanation, and either a `value()` for one number or a
+`table()` for a row per colour.
+
+### Reachable potential
+
+Potential asks how far a colour could go and answers as if you had all the time
+in the world. You do not. **Reachable** is the same rule under your actual turn
+budget — the most a colour can still be worth in the plays you have left — and
+it is the number a late-game decision should be made against. The gap between
+the two is the time pressure, made visible.
+
+Two consequences worth knowing:
+
+- An **unstarted** colour is never reachable-negative: not opening it is always
+  available. A **started** one can be, since the −20 is already spent — which is
+  exactly what an opening gate wants to test.
+- Reachable can read *higher* than potential. Potential plays every wager it
+  can, and on a colour whose numbers cannot clear the 20 that multiplies a loss;
+  under a budget those wagers are optional, so it declines them.
+
+### Free discards
+
+Cards your own piles have already climbed past. They can never be played, so
+throwing one away costs nothing — which makes them the currency of patience:
+while you hold one, you never have to make a play that locks out your own low
+cards. It is the quantity The Patient's whole edge is built on.
 
 ### Assistant
 
@@ -195,17 +223,58 @@ anything**, and never draws from the discards.
 
 | computer | strategy | median score | 8+ bonus |
 |---|---|---|---|
+| **The Patient** | never locks itself out: spends dead cards rather than make a costly play | **220** | 99% |
+| **Wager Open** | Lowest, but a colour can only be *started* with a wager | **98** | 29% |
 | **Lowest** | plays the card that decreases that colour's potential the least | **73** | 13% |
 | **Lowest 3+** | Lowest, but won't *open* a colour unless holding 3+ of it | **70** | 11% |
-| **Wager Open** | Lowest, but a colour can only be *started* with a wager | **98** | 29% |
 | **Wager Open 4** | Wager Open, but never opens a 5th colour — stops at 4 | **56** | 8% |
 | **Random** | plays a uniformly random legal card | **12** | 1% |
 
-Medians over 3,000 identical deals played by all five. **8+ bonus** is the
-share of games landing at least one venture of 8+ cards, worth +20 each.
+Medians over 3,000 deals. **8+ bonus** is the share of games landing at least
+one venture of 8+ cards, worth +20 each.
 
-**Wager Open is far the strongest — +21.4 ± 0.7 over Lowest head to head on the
-same deal** (it wins 63.7% of deals, ties 18.8%). The reason is that the wager
+⚠️ The runner gives each computer its own shuffle, so those columns are not
+paired — the head-to-head figures below come from a paired harness that seeds
+one shuffle per round and hands it to every computer.
+
+**The Patient is far the strongest — +126.3 ± 6.4 over Wager Open on paired
+shuffles, winning 98% of them.** It more than doubles the previous best median
+(220 against 98), and the mechanism is visible in one column: it lands an 8+
+venture in **99%** of games against Wager Open's 29%.
+
+Two rules do it, both taken from human strategy writing (see
+[STRATEGY.md](STRATEGY.md)):
+
+- **Patience.** A venture only ascends, so playing a 7 over a held 2 kills the
+  2 and every 3–6 still to come. Lowest and Wager Open have no choice — they
+  play whenever a legal play exists, so they lock themselves out early and
+  finish with short ventures. The Patient refuses: while it holds a card its own
+  pile has already climbed past (a **dead card**, free to throw), it will not
+  make a play costing more than 25 potential. It spends the dead card and waits.
+  Worth **+115** on its own.
+- **Open anything it can pay for.** Wager Open strands every card of a colour it
+  drew no wager in. The Patient opens with a number too, provided the colour can
+  still finish above zero in the turns left. Worth a further **+13**.
+
+Everything is priced in **reachable potential** — potential capped by the plays
+actually left — which is worth about **+18** of that total over plain potential.
+
+⚠️ **This is a solitaire result and patience is unusually cheap here**: every
+card eventually reaches you, and a discard costs nothing because there is nobody
+to receive it. Against a real opponent, discards are gifts and you see half the
+deck. Expect the margin to shrink — by how much is exactly what a two-player
+harness would tell us.
+
+A dead end worth recording: pricing plays and discards on **one** scale and
+taking the cheapest move — which looks like the natural generalisation — scores
+**39**, worse than Lowest. Potential measures what a position could still become
+and gives no credit for banking points, so as an arbiter between playing and
+discarding it is not just weak but actively misleading. The built-ins' hard
+"play if you legally can" is load-bearing, and the patience rule works precisely
+because it overrides that only when the alternative is *free*.
+
+Historic, and still true of the others: **Wager Open beats Lowest by +21.4 ± 0.7
+head to head** (it wins 63.7% of deals, ties 18.8%). The reason is that the wager
 multiplier dominates scoring: a venture is worth `(sum − 20) × (1 + wagers)`.
 Lowest only avoids wasting wagers it is *holding*; when it holds none of a
 colour it opens with a number anyway and forfeits all three of that colour's
@@ -285,8 +354,8 @@ Under set semantics `if` keeps what passes and hands what failed to `elif` /
 | **selectors** | `<value> min` · `<value> max` · `random` |
 | **comparisons** | `<value>` `< <= > >= == !=` `<number>`, joined with `and` / `or` (left to right, no brackets) |
 | **commands** | `play` · `discard` |
-| **per-card values** | `change in potential` · `potential` · `same color in hand` · `pile size` · `card num` · `card color` |
-| **position values** | `proj turns` · `deck` · `hand` / `hand size` · `open colors` · `opphand` · `rand` |
+| **per-card values** | `change in potential` · `change in reachable` · `potential` · `reachable potential` · `break even gap` · `same color in hand` · `pile size` · `card num` · `card color` |
+| **position values** | `proj turns` · `deck` · `hand` / `hand size` · `open colors` · `dead cards` · `opphand` · `rand` |
 
 The reference column on the page carries the same list with a line on each.
 
