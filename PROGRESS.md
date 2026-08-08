@@ -52,7 +52,12 @@ total 102) and the **computers**.
 
 **Computers** — solitaire (`playSoloGame`) and **duel** (`playDuelGame`, two
 computers on one deck, seats swapped). Built-ins: Lowest, Lowest 3+, Wager Open,
-Wager Open 4, Random, **The Patient**, **The Broker**.
+Wager Open 4, Random, **The Patient**, **The Broker**. Any of them — and anything
+saved in the builder — can also be **your opponent on the board**, picked from
+the top bar. The bridge is `_labCpuView` / `_labCpuChooseTurn` in `lab.js`: it
+hands the live `gameState` over as the same `duelView` the duel runner uses, so
+a computer plays you exactly as it plays a measured duel, perfect information
+included. Covered by `test/opponent_check.js`.
 
 **Build a computer** — a Python-shaped language with an editor, saved to
 localStorage; saved computers join the picker and the tables.
@@ -91,6 +96,15 @@ Kept because the pattern matters more than the individual mistakes.
 3. **The Broker scored 0 in solitaire**, discarding all 52 cards, because
    solitaire hands over no ordered deck and it read *one turn left* from the
    opening move. Found by a diagnostic print, not by reasoning about the code.
+4. **Letting a computer play you looked like it worked, and half of every one
+   of its turns was being played by something else.** A computer decides its
+   card and its draw in ONE call; the board splits those across two waits. The
+   first version fell through to the built-in opponent's draw whenever the
+   computer named no pile — but naming no pile *is* the answer, and it means the
+   deck (`playDuelGame` reads it that way, which is why every solitaire computer
+   runs in a duel unchanged). Nothing about the game looked wrong. Found only
+   because `opponent_check.js` counted what the computer asked for against what
+   the engine was asked for: 1 against 11.
 
 ## 5. Where to look for the next move
 
@@ -118,6 +132,13 @@ Smaller, known, unfixed:
 - `sweep2.js` and `duel_scores.js` in `test/` are **measurement** scripts, not
   pass/fail checks — they print tables. That is where the tuning numbers in the
   READMEs came from.
+- ⚠️ **`build_check.js` is FLAKY, about 1 run in 20.** Its last assertion —
+  "Wager Open written in the language beats the written-out Lowest" — compares
+  two medians over 40 **unseeded** games, and they land close enough to cross.
+  So a red `run-all` is not automatically a real failure: check whether the only
+  line that failed is that one, and re-run. `duel_check.js` shows the fix (a
+  seeded `Math.random` in the harness); doing it means re-reading whatever the
+  new seed reports, so it was left alone rather than quietly re-baselined.
 
 ## 6. Related project
 

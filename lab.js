@@ -30,7 +30,8 @@ const LAB = {
   potential:  true,   // per-colour potential under each pile
   assist: false,      // Venture Assistant (default OFF — it takes moves away)
   pickDraw: false,    // click any deck card to draw it (default OFF — see labPickDraw)
-  ai: 'solid',        // 'casual' | 'solid' | 'sharp'
+  ai: 'solid',        // 'casual' | 'solid' | 'sharp', or 'cpu:<key>' for a
+                      // computer out of COMPUTERS — see THE OPPONENT below
   aiDelayMs: 550,     // pause between the opponent's play and its draw
   topInset: 44,       // height of the lab bar; layout.js subtracts it from the
                       // viewport so the board is solved for the space it gets
@@ -174,9 +175,24 @@ on('stateChanged', ({ action }) => {
 /* ============================================================================
    THE OPPONENT
 
-   A local, offline opponent. Deliberately NOT the real Sage bot (that is a
-   WASM worker on his site) — the lab is for studying positions, so the
-   opponent only has to play sensibly.
+   Two of them, chosen from the top bar.
+
+   1. THE BUILT-IN LEVELS ('casual' / 'solid' / 'sharp'). A local, offline
+      opponent. Deliberately NOT the real Sage bot (that is a WASM worker on his
+      site) — the lab is for studying positions, so the opponent only has to
+      play sensibly.
+
+   2. ANY COMPUTER ('cpu:<key>'). The same computers the statistics section
+      measures — built-ins and the ones you write in the builder — playing you
+      instead of each other. That is the point: the duel runner tells you The
+      Broker beats The Patient by 32 points, and this is where you find out what
+      that feels like from the other side of the table.
+
+      They run through the DUEL contract (`duelView` in computers.js), not a
+      second copy of it, so a computer plays here exactly as it does in a
+      measured duel. Which means it can see the ordered deck and your hand —
+      the duel's deliberate perfect information (computers.js, THE DUEL). It is
+      not being handed anything the lab does not already show you.
    ========================================================================== */
 
 function _labPileScore(pile){ return MATH.scorePlayPile(pile); }
@@ -243,15 +259,98 @@ function _labAIChooseDraw(slot){
   return { source:'deck' };
 }
 
+/* ------------------------------------------------- playing against a COMPUTER
+
+   `LAB.ai` is 'cpu:<key>' when the opponent is one of COMPUTERS. computers.js
+   loads after this file, so every reference to it is looked up at call time. */
+
+function _labCpuKey(){
+  return String(LAB.ai || '').indexOf('cpu:') === 0 ? LAB.ai.slice(4) : null;
+}
+
+function _labCpuBot(){
+  const key = _labCpuKey();
+  if (!key || typeof COMPUTERS === 'undefined') return null;
+  return COMPUTERS[key] || null;
+}
+
+/* The live board as the duel VIEW a computer expects. The arrays are rebuilt
+   rather than handed over: `getCards` exists precisely because a missing colour
+   array is a real shape this state can take, and a computer that indexes
+   straight into `piles[colour]` would throw on one. The CARDS inside stay the
+   same objects, which matters — computers identify a card by reference
+   (`filter(c => c !== card)`) while ENGINE matches on `id`. */
+function _labCpuView(slot){
+  const opp = slot === 'player1' ? 'player2' : 'player1';
+  const hands = {}, piles = {}, discards = {};
+  for (const s of [slot, opp]){
+    hands[s] = getCards(gameState, 'hands', s).slice();
+    piles[s] = {};
+    for (const c of CONFIG.colors) piles[s][c] = getCards(gameState, 'playPiles', s, c).slice();
+  }
+  for (const c of CONFIG.colors) discards[c] = getCards(gameState, 'discards', c).slice();
+  return duelView(slot, hands, piles, discards, getCards(gameState, 'drawPile').slice(),
+                  gameState.lastDiscardTarget, Math.random);
+}
+
+/* One decision — the card AND the draw, from the same pre-move view, which is
+   how playDuelGame asks for it and therefore what the computers were measured
+   making.
+
+   Everything here is defended, because a computer may be one the user wrote
+   thirty seconds ago in the builder: a throw, a card it does not hold, or an
+   illegal play all fall back to the built-in opponent rather than wedging the
+   game. `_labCpuWarned` keeps that to one message per game instead of one per
+   turn. */
+let _labCpuWarned = false;
+function _labCpuChooseTurn(slot){
+  const bot = _labCpuBot();
+  if (!bot) return null;
+  let move;
+  try {
+    move = bot.decide(_labCpuView(slot));
+  } catch (e){
+    return _labCpuFail(bot, 'threw: ' + (e && e.message ? e.message : e));
+  }
+  if (!move || !move.card) return _labCpuFail(bot, 'chose nothing');
+
+  const hand = getCards(gameState, 'hands', slot);
+  const card = hand.find(c => c.id === move.card.id);
+  if (!card) return _labCpuFail(bot, 'chose a card it does not hold');
+
+  const wantsPlay = move.action !== 'discard';
+  if (wantsPlay && !_labCanPlay(card, getCards(gameState, 'playPiles', slot, card.color)))
+    return _labCpuFail(bot, 'chose an illegal play');
+
+  return { kind: wantsPlay ? 'play' : 'discard', card, color: card.color,
+           draw: move.draw && move.draw !== 'deck' ? move.draw : null };
+}
+
+function _labCpuFail(bot, why){
+  if (!_labCpuWarned){
+    _labCpuWarned = true;
+    _labFlash(bot.name + ' ' + why + ' — falling back to the built-in opponent');
+  }
+  console.warn('[lab] computer ' + bot.name + ' ' + why);
+  return null;
+}
+
 let _labAIBusy = false;
 function _labAITurn(){
   if (_labAIBusy || !gameState || gameState.status === 'finished') return;
   const slot = gameState.currentTurn;
   if (slot === userSlot) return;
   _labAIBusy = true;
+  // A computer decides its card and its draw together, from the position
+  // BEFORE the card is played — that is the contract playDuelGame asks on, and
+  // therefore the one these computers were measured making. The whole decision
+  // is held here across the two halves of the turn.
+  let cpuTurn = null;
   setTimeout(() => {
     if (gameState.phase === 'play'){
-      const mv = _labAIChoosePlay(slot);
+      const cpu = _labCpuChooseTurn(slot);
+      const mv = cpu || _labAIChoosePlay(slot);
+      cpuTurn = cpu;
       if (mv.kind === 'play') ENGINE.playCard(gameState, slot, mv.card, mv.color);
       else ENGINE.discardCard(gameState, slot, mv.card, mv.color);
       SFX[mv.kind === 'play' ? 'play' : 'discard']();
@@ -259,7 +358,14 @@ function _labAITurn(){
     }
     setTimeout(() => {
       if (gameState.currentTurn === slot && gameState.phase === 'draw'){
-        const d = _labAIChooseDraw(slot);
+        // When a computer decided this turn, its draw is the whole answer:
+        // a pile if it named one, and otherwise THE DECK — not the built-in
+        // opponent's preference. Every solitaire computer names nothing and
+        // means the deck by it (playDuelGame reads it the same way), so
+        // consulting _labAIChooseDraw here would quietly play half of each of
+        // their turns for them. It did, until this line was a ternary.
+        const d = cpuTurn ? (cpuTurn.draw ? { source:'discard', color: cpuTurn.draw } : { source:'deck' })
+                          : _labAIChooseDraw(slot);
         if (d.source === 'deck') ENGINE.drawFromDeck(gameState, slot);
         else if (!ENGINE.drawFromDiscard(gameState, slot, d.color).success) ENGINE.drawFromDeck(gameState, slot);
         SFX.drawCard();
@@ -1084,6 +1190,7 @@ function newLabGame(){
   lastPlayedCard = null;
   spreadPile = null;
   _labAIBusy = false;
+  _labCpuWarned = false;              // one computer-failure message per game
 
   gameState = ENGINE.initGame(variant, false);
   gameState.currentTurn = Math.random() < 0.5 ? 'player1' : 'player2';
@@ -1136,6 +1243,54 @@ function _labDeckPanelWidth(){
   const nc = CONFIG.colors.length;
   const want = nc * cw + (nc - 1) * 8 + 30;
   return Math.round(Math.max(150, Math.min(want, window.innerWidth / 3)));
+}
+
+/* Everything the opponent picker can offer: the three built-in levels, then
+   every computer. Kept separate from the markup because the VALUES are a
+   contract — `_labCpuKey` has to be able to read back what this writes — and a
+   pure list is something a check can hold to that. */
+const LAB_LEVELS = ['casual', 'solid', 'sharp'];
+function labOpponentOptions(){
+  const out = LAB_LEVELS.map(k => ({ group:'Built-in levels', value:k,
+                                     label:k[0].toUpperCase() + k.slice(1) }));
+  if (typeof COMPUTERS !== 'undefined')
+    for (const k of Object.keys(COMPUTERS))
+      out.push({ group:'Computers', value:'cpu:' + k, label: COMPUTERS[k].name });
+  return out;
+}
+
+/* Rebuild the picker. Called at boot and again by cpuSyncList() whenever the
+   builder saves or deletes one, so a computer you just wrote is immediately
+   available to play against.
+
+   The selection survives a rebuild; a computer that has been DELETED does not,
+   and falls back to Solid rather than leaving the bar naming an opponent that
+   no longer exists. */
+function labSyncOpponentList(){
+  const sel = document.getElementById('lab-ai');
+  if (!sel) return;
+  const opts = labOpponentOptions();
+  let html = '', group = null;
+  for (const o of opts){
+    if (o.group !== group){
+      if (group) html += '</optgroup>';
+      html += '<optgroup label="' + o.group + '">';
+      group = o.group;
+    }
+    html += '<option value="' + o.value + '">Opponent: ' + o.label + '</option>';
+  }
+  if (group) html += '</optgroup>';
+  sel.innerHTML = html;
+  if (!opts.some(o => o.value === LAB.ai)) LAB.ai = 'solid';
+  sel.value = LAB.ai;
+  _labSetOpponentName();
+}
+
+/* The name tag over their hand. rendering.js reads this element at render time,
+   so it only has to be right before the next renderGame(). */
+function _labSetOpponentName(){
+  const bot = _labCpuBot();
+  document.getElementById('opponent-name-store').textContent = bot ? bot.name : 'Opponent';
 }
 
 function _labSyncToggles(){
@@ -1195,8 +1350,14 @@ function _labInit(){
     _labSyncToggles();
     renderGame();
   };
-  document.getElementById('lab-ai').onchange   = (e) => { LAB.ai = e.target.value; };
+  document.getElementById('lab-ai').onchange   = (e) => {
+    LAB.ai = e.target.value;
+    _labCpuWarned = false;            // a new opponent gets a fresh warning
+    _labSetOpponentName();
+    renderGame();
+  };
 
+  labSyncOpponentList();              // built-in levels + every computer
   _labHookHandOrder();                // hands read as a ranking, best colour left
   _labSetInfoInset();                 // reserves the left strip for the info panel
   _labSetDeckPanel(LAB.revealDeck);   // reserves the strip and sizes the board for it

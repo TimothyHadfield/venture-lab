@@ -897,6 +897,7 @@ function cpuSyncList(){
     + Object.keys(COMPUTERS).map(k => '<option value="' + k + '">' + COMPUTERS[k].name + '</option>').join('');
   if (keep && sel.querySelector('option[value="' + keep + '"]')) sel.value = keep;
   if (typeof duelSyncList === 'function') duelSyncList();   // builder computers duel too
+  if (typeof labSyncOpponentList === 'function') labSyncOpponentList();  // …and play you
   cpuStop();
   cpuReset();
 }

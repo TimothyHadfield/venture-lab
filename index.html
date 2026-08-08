@@ -28,6 +28,24 @@
   border-radius:6px;padding:3px 9px;cursor:pointer;
 }
 #lab-bar button:hover,#lab-bar select:hover{border-color:var(--gold,#d4a843)}
+
+/* ---- Dropdown popups ------------------------------------------------------
+   A <select>'s open list is drawn by the browser, not by this page, and on
+   Windows it defaults to WHITE — so parchment-on-transparent options came out
+   near-invisible and you could not read which computer you were picking.
+   `color-scheme:dark` is the switch that makes the browser draw the popup (and
+   its scrollbar and tick) dark; the explicit option colours are the fallback
+   for engines that ignore it. Applies to every select the lab adds. */
+#lab-bar select,#lab-stats select,#lab-build select{color-scheme:dark}
+#lab-bar select option,#lab-stats select option,#lab-build select option{
+  background-color:#241606;color:var(--parchment,#e8dcc0);
+}
+#lab-bar select optgroup,#lab-stats select optgroup,#lab-build select optgroup{
+  background-color:#1a0f0a;color:var(--gold,#d4a843);font-style:normal;font-weight:700;
+}
+#lab-bar select option:checked,#lab-stats select option:checked,#lab-build select option:checked{
+  background-color:#3d2812;color:var(--gold-bright,#f0c860);
+}
 #lab-bar button.on{background:var(--gold,#d4a843);border-color:var(--gold,#d4a843);color:#241606;font-weight:600}
 #lab-bar .lab-sep{flex:1}
 /* The board sits under the fixed bar. */
@@ -244,7 +262,9 @@ table.st tr.tot td.g{font-weight:700;color:var(--gold,#d4a843)}
 <div id="lab-bar">
   <span class="lab-title">Venture Lab</span>
   <button id="lab-new">New game</button>
-  <select id="lab-ai" title="Opponent strength">
+  <!-- Rebuilt by labSyncOpponentList() to add every computer, built-in and
+       user-written. These three are the pre-script fallback. -->
+  <select id="lab-ai" title="Who you are playing against">
     <option value="casual">Opponent: Casual</option>
     <option value="solid" selected>Opponent: Solid</option>
     <option value="sharp">Opponent: Sharp</option>

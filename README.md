@@ -46,9 +46,42 @@ fans and animations. What's different:
 - **Pick draw** — a toggle: on your draw, click any card in the deck panel and
   you draw *that* card instead of the top one. The same ability the cheat
   toolkit has on the live site.
+- **Your opponent** — a picker in the top bar: three built-in levels, or **any
+  of the computers**. See below.
 
 Each reveal toggle is a button in the top bar; all three are **on by default**.
 The assistant is off by default — it takes moves away from you.
+
+### Who you play against
+
+The picker in the top bar offers two kinds of opponent.
+
+**Built-in levels — Casual, Solid, Sharp.** A small local opponent that only has
+to play sensibly; the lab is for studying positions, not for being beaten by a
+bot. Solid by default.
+
+**Any computer.** Every computer in the [Computers](#computers) section — the
+built-ins and the ones you write in the [builder](#build-a-computer) — can sit
+across the table from you. The [duel](#duel) tells you The Broker beats The
+Patient by 32 points; this is where you find out what that feels like from the
+other side. Their name appears over their hand, so you always know who you are
+playing.
+
+Two things worth knowing:
+
+- **They play here exactly as they do in a measured duel.** The board hands them
+  the same `duelView`, and they decide their card and their draw in one call from
+  the position before the card is played — the same contract `playDuelGame` uses.
+  There is no second, softer copy of a computer for interactive play.
+- **Which means they see the deck order and your hand.** That is the duel's
+  deliberate perfect information (see [What a duel computer can see](#what-a-duel-computer-can-see)),
+  not a handicap invented for you: they are looking at the same board you are.
+  A computer that only sees what a real player sees is a different exercise, and
+  an interesting one.
+
+A computer written in the builder can be wrong as well as weak. If one throws,
+names a card it does not hold, or tries an illegal play, the board says so once
+and the built-in opponent finishes the game rather than the game wedging.
 
 ### Projected turns
 
@@ -520,7 +553,7 @@ for card in hand:
 | path | what it is |
 |---|---|
 | `index.html` | the page: game-screen markup + the lab control bar |
-| `lab.js` | game loop, offline opponent, reveals, potential |
+| `lab.js` | game loop, opponents (levels + the bridge that lets a computer play you), reveals, potential |
 | `stats.js` | the dealing-trials section |
 | `computers.js` | the computers and the solitaire game they're tested on |
 | `builder.js` | the build-a-computer language and its page |
