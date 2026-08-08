@@ -474,6 +474,76 @@ and it is playing a game it was not built for.
 
 **Adding one without JavaScript** — **Build a computer**, below.
 
+## Tournament
+
+A duel answers *is A better than B*. It cannot answer the question actually
+worth asking — **who is strongest** — because a margin only ever means something
+relative to whoever it was measured against. Every "duel" number in this repo's
+history was collected a pairing at a time against The Patient, and each one
+inherited The Patient's particular weaknesses.
+
+The **Tournament** section runs the whole field: every computer against every
+other, the same number of deals per pairing, each deal played twice with the
+seats swapped. Tick the computers you want in the field (saved ones included),
+set the deals, press run. It draws two things.
+
+**Standings** — ranked by margin per game across the field, with wins, draws,
+losses, win rate and a confidence interval.
+
+**Head to head** — a grid of every pairing, each cell the row's margin per game
+against the column. The grid mirrors about its diagonal, so a wrong cell shows
+up as a broken mirror. Gold is a win, red a loss, and **faded means the interval
+still spans zero** — those two are *not separated*, however confident the
+standings above look.
+
+Cost is set by the expensive computers: The Broker costs ~20 ms a game against
+anything and ~40 ms against itself, where two cheap computers cost under 1 ms.
+The full seven-computer field at 50 deals is 2,100 games, about 20 seconds. The
+run is time-boxed per frame, so the page stays responsive and the table fills in
+as it goes; **Stop** keeps what has been played.
+
+### What the round robin says
+
+Seven built-ins, **200 deals a pairing — 8,400 games** (`node test/tourney_scores.js`):
+
+| # | computer | W-D-L | win rate | margin a game |
+|---|---|---|---|---|
+| 1 | **The Broker** | 1778-18-604 | 74.1% | **+32.3 ± 2.0** |
+| 2 | Lowest | 1420-23-957 | 59.2% | +10.6 ± 2.0 |
+| 3 | Lowest 3+ | 1348-22-1030 | 56.2% | +6.7 ± 2.1 |
+| 4 | Wager Open 4 | 1184-23-1193 | 49.3% | +0.4 ± 2.0 |
+| 5 | **The Patient** | 1024-18-1358 | 42.7% | **−10.2 ± 2.2** |
+| 6 | Wager Open | 952-18-1430 | 39.7% | −13.4 ± 2.2 |
+| 7 | Random | 626-14-1760 | 26.1% | −26.4 ± 1.8 |
+
+Two results the pairwise duels could not have produced.
+
+**The Patient finishes fifth of seven — beaten by plain Lowest by 18 points a
+game.** It wins *solitaire* by 126 points over Wager Open and lands the 8-card
+bonus in 99% of games. Across a table it is worse than the simplest computer in
+the field. The duel had already shown it could not separate itself from Wager
+Open; the full field shows why that mattered — patience is not merely neutral
+with an opponent present, it is a **liability**, because waiting means
+discarding, and every discard is handed to someone who can use it. Solitaire
+does not merely flatter patience, it inverts its sign.
+
+**The Broker's lead is not an artifact of the field.** It beats every single
+computer, from +15 against Lowest to +55 against Random, so its average is not
+being carried by farming the weak ones. That is the specific thing a round robin
+can say and a duel cannot.
+
+Exactly one of the 21 pairings was still undecided at 200 deals: **The Patient
+vs Wager Open, +4** — which is the same answer the duel gave at +4.8 ± 11.8, by
+a much longer route.
+
+A second run on a different seed put every computer in the same order, so the
+ranking is not a seed artifact; the individual margins moved by a point or two,
+which is what the intervals say they should.
+
+⚠️ **A margin is always relative to the field.** Add a weak computer and
+everyone's average rises. The standings are a statement about *these seven*, not
+about Venture; the head-to-head grid is the part that does not move.
+
 ## Build a computer
 
 A button in the Computers controls opens an editor where you write a computer in

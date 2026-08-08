@@ -48,7 +48,9 @@ the deck face-up as colour columns, the opponent's hand revealed, and a
 **pick draw** (click any deck card to draw it).
 
 **Statistics** — dealing trials (ranked colour medians −9 · 4 · 15 · 28 · 64,
-total 102) and the **computers**.
+total 102), the **computers**, a pairwise **duel**, and a **tournament**: the
+whole field round-robin, with standings and a head-to-head grid. The tournament
+is now where a strength claim should come from — see §3.
 
 **Computers** — solitaire (`playSoloGame`) and **duel** (`playDuelGame`, two
 computers on one deck, seats swapped). Built-ins: Lowest, Lowest 3+, Wager Open,
@@ -64,23 +66,41 @@ localStorage; saved computers join the picker and the tables.
 
 ## 3. What the numbers say
 
-| | solitaire median | duel (vs The Patient) |
-|---|---|---|
-| The Patient | **228** | −16 |
-| The Broker | 158 | **+20** |
-| Wager Open | 82 | −13 |
-| Lowest | 63 | +3 |
-| Random | 5 | −33 |
+**The round robin is now the reference** (Statistics → Tournament, or
+`node test/tourney_scores.js`). Every computer against every other, 200 deals a
+pairing, seats swapped — **8,400 games**:
 
-Head to head, paired, seats swapped: **The Broker beats The Patient by
-+32.2 ± 9.5** and Wager Open by +34.5 ± 9.0. **The Patient cannot separate itself
-from Wager Open in a duel** (+4.8 ± 11.8) despite winning solitaire by 126.
+| # | | solitaire median | margin a game, whole field |
+|---|---|---|---|
+| 1 | **The Broker** | 158 | **+32.3 ± 2.0** |
+| 2 | Lowest | 63 | +10.6 ± 2.0 |
+| 3 | Lowest 3+ | — | +6.7 ± 2.1 |
+| 4 | Wager Open 4 | — | +0.4 ± 2.0 |
+| 5 | **The Patient** | **228** | **−10.2 ± 2.2** |
+| 6 | Wager Open | 82 | −13.4 ± 2.2 |
+| 7 | Random | 5 | −26.4 ± 1.8 |
 
-**The lesson running through all of it: solitaire is a different game.** It
-hands you every card, twice the turns, and nobody who profits from your
-discards. Patience is nearly free there and ordinary across a table. Duel scores
-(0–30) match what the strategy literature reports for real games; solitaire
-scores (100–230) do not.
+**The lesson running through all of it: solitaire is a different game** — and the
+round robin sharpened it from "different" to "inverted". It hands you every
+card, twice the turns, and nobody who profits from your discards.
+
+- **The Patient is FIFTH of seven, 18 points a game behind plain Lowest**, while
+  winning solitaire by 126 and landing the 8-card bonus in 99% of games. Earlier
+  notes had it "unable to separate itself from Wager Open"; that understated it.
+  With an opponent present, patience is not neutral but a **liability** — waiting
+  means discarding, and a discard is handed to someone who can use it.
+- **The Broker's lead is not an artifact of the field**: it beats every computer
+  individually, +15 against Lowest through +55 against Random. That is precisely
+  what a round robin can say and a pairwise duel cannot.
+- Exactly 1 of 21 pairings was undecided at 200 deals — The Patient vs Wager
+  Open at +4, the same answer the duel reached at +4.8 ± 11.8. A second run on a
+  different seed reproduced the whole ORDER, with individual margins moving a
+  point or two, as their intervals say they should.
+
+⚠️ **An average margin is relative to the FIELD** — add a weak computer and
+everyone's rises. The standings describe these seven; the head-to-head grid is
+the part that does not move. Duel scores (0–30) match what the strategy
+literature reports for real games; solitaire scores (100–230) do not.
 
 ## 4. Three things I predicted wrong
 
@@ -106,6 +126,15 @@ Kept because the pattern matters more than the individual mistakes.
    because `opponent_check.js` counted what the computer asked for against what
    the engine was asked for: 1 against 11.
 
+### The question the round robin opened
+
+**Why does plain Lowest beat The Patient by 18 a game?** Lowest is four lines —
+play the card that costs its colour the least potential — and it is second in
+the field, ahead of every rule the strategy literature suggested. That is either
+a real finding about Venture (tempo beats position when discards are contested)
+or the field is too weak to tell them apart, and the tournament can now be
+pointed at the question directly: build the variants and enter them.
+
 ## 5. Where to look for the next move
 
 STRATEGY.md is the menu. The two items I would pick up first:
@@ -129,9 +158,13 @@ Smaller, known, unfixed:
   `score = …` / `play max` statement, which is how a strong computer actually
   wants to be written. Neither the duel view nor the opponent-facing values are
   exposed to it yet.
-- `sweep2.js` and `duel_scores.js` in `test/` are **measurement** scripts, not
-  pass/fail checks — they print tables. That is where the tuning numbers in the
-  READMEs came from.
+- `sweep2.js`, `duel_scores.js` and `tourney_scores.js` in `test/` are
+  **measurement** scripts, not pass/fail checks — they print tables. That is
+  where the tuning numbers in the READMEs came from. `tourney_scores.js` is
+  seeded, so §3's table reproduces exactly.
+- The **solitaire** table is still the only place a computer is ranked by a
+  number that has no opponent in it. §3 is now the round robin; treat a
+  solitaire median as a description of the computer, not of its strength.
 - ⚠️ **`build_check.js` is FLAKY, about 1 run in 20.** Its last assertion —
   "Wager Open written in the language beats the written-out Lowest" — compares
   two medians over 40 **unseeded** games, and they land close enough to cross.

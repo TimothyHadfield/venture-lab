@@ -24,6 +24,7 @@ const FAST = [
   ['pick_check.js',      'pick draw: the reorder contract'],
   ['build_check.js',     'the build-a-computer language'],
   ['opponent_check.js',  'playing a computer on the board'],
+  ['tourney_check.js',   'the tournament: fixtures, standings, the page'],
 ];
 const SLOW = [
   ['realist_check.js',   'reachable potential + The Patient, 400 paired games'],

@@ -599,6 +599,12 @@ function duelProject(piles, avail, turns){
    RUNNER + UI
    ========================================================================== */
 
+/* A computer's name is whatever the user typed in the builder, and it reaches
+   every table, picker and tooltip on this page. Escaped once, here. */
+const _esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                           .replace(/"/g, '&quot;');
+const _sgn = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(1);
+
 /* A pile is at worst a venture of wagers alone, so a colour cannot score below
    (0 − baseCost) × (1 + wagerCount); at best it is the complete colour. */
 const SCORE_MIN = CONFIG.colors.length * (0 - CONFIG.scoring.baseCost) * (1 + CONFIG.wagerCount);
@@ -740,7 +746,7 @@ function cpuRender(){
   let rows = '';
   for (const k of keys){
     const a = runs[k], s = tallyStats(a.score);
-    rows += '<tr><td class="g">' + COMPUTERS[k].name + '</td>'
+    rows += '<tr><td class="g">' + _esc(COMPUTERS[k].name) + '</td>'
       + '<td class="med">' + s.median + '</td>'
       + '<td class="num">' + s.mean.toFixed(1) + '</td>'
       + '<td class="num">' + s.min + ' … ' + s.max + '</td>'
@@ -756,7 +762,7 @@ function cpuRender(){
   let charts = '';
   for (const k of keys){
     const a = runs[k], s = tallyStats(a.score);
-    charts += '<div class="cpu-card"><div class="cpu-h">' + COMPUTERS[k].name
+    charts += '<div class="cpu-card"><div class="cpu-h">' + _esc(COMPUTERS[k].name)
       + '<span class="cpu-med">median ' + s.median + '</span></div>'
       + '<p class="note">' + COMPUTERS[k].blurb + '</p>'
       + _hist(a.score, 40) + '</div>';
@@ -827,7 +833,7 @@ function duelRender(){
   const ci = 1.96 * sd / Math.sqrt(n);
   const wins = DUEL.margins.filter(v => v > 0).length;
   const ties = DUEL.margins.filter(v => v === 0).length;
-  const nameA = COMPUTERS[DUEL.a].name, nameB = COMPUTERS[DUEL.b].name;
+  const nameA = _esc(COMPUTERS[DUEL.a].name), nameB = _esc(COMPUTERS[DUEL.b].name);
   // An interval that still spans zero has not decided anything yet — say so
   // rather than let a number that could be noise read as a result.
   const decided = Math.abs(mean) > ci;
@@ -848,6 +854,278 @@ function duelRender(){
     + ' Each deal is played twice with the seats swapped, so the first-player edge cancels.</p>';
 }
 
+/* ============================================================================
+   THE TOURNAMENT — every computer against every other
+
+   A duel answers one question: is A better than B. It cannot answer the one
+   actually worth asking, which is who is strongest, because a margin only means
+   anything relative to whoever it was measured against. The table in
+   PROGRESS.md was assembled a pairing at a time against The Patient, and every
+   number in it inherits The Patient's particular weaknesses.
+
+   A round robin removes that. Every computer meets every other over the same
+   number of deals, so one average is comparable with another.
+
+   Two things it still cannot do, both stated on the page rather than hidden:
+   an average over the FIELD moves when the field does — enter three weak
+   computers and everyone's average rises — and a pairing whose interval spans
+   zero has not been decided, however confident the ranking above it looks.
+   ========================================================================== */
+
+const TOURNEY = { running: false, raf: 0, keys: [], fixtures: [], at: 0, target: 0,
+                  ms: 30 };   // milliseconds of work per animation frame
+
+/* The fixtures: every unordered pair, once. A computer never plays itself —
+   with the seats swapped that is zero by construction, and it would only
+   dilute the averages with a result nobody is in doubt about. */
+function tourneyFixtures(keys){
+  const out = [];
+  for (let i = 0; i < keys.length; i++)
+    for (let j = i + 1; j < keys.length; j++)
+      out.push({ a: keys[i], b: keys[j], margins: [], deals: 0, plies: 0, stalls: 0, hung: 0 });
+  return out;
+}
+
+/* Play `n` more deals of one fixture. Each deal is played twice with the seats
+   swapped and BOTH margins recorded from A's side, so the first-player edge
+   cancels — the same arrangement duelRun uses, for the same reason. */
+function tourneyPlay(fx, n, mkDeck){
+  for (let i = 0; i < n; i++){
+    const deck = mkDeck ? mkDeck() : RULES.createDrawPile();
+    const g1 = playDuelGame(COMPUTERS[fx.a], COMPUTERS[fx.b], { deck });
+    const g2 = playDuelGame(COMPUTERS[fx.b], COMPUTERS[fx.a], { deck });
+    fx.margins.push(g1.margin, -g2.margin);
+    fx.plies += g1.plies + g2.plies;
+    fx.stalls += g1.stalls + g2.stalls;
+    fx.hung += (g1.hung ? 1 : 0) + (g2.hung ? 1 : 0);
+    fx.deals++;
+  }
+  return fx;
+}
+
+function _meanCI(v){
+  const n = v.length;
+  if (!n) return { n: 0, mean: 0, ci: 0 };
+  const mean = v.reduce((s, x) => s + x, 0) / n;
+  const sd = n > 1 ? Math.sqrt(v.reduce((s, x) => s + (x - mean) * (x - mean), 0) / (n - 1)) : 0;
+  return { n, mean, ci: 1.96 * sd / Math.sqrt(n) };
+}
+
+/* Fold the fixtures into one row per computer. Pure — it reads the fixtures and
+   returns a table, which is what lets a check hold it to the arithmetic without
+   a browser.
+
+   Every game is counted TWICE, once from each side, with the margin negated for
+   the second. That is not double counting: a game is a result for both players,
+   and a win for one is a loss for the other. It is also what makes the totals
+   self-checking — wins across the whole table must equal losses. */
+function tourneyStandings(keys, fixtures){
+  const row = {};
+  for (const k of keys)
+    row[k] = { key: k, name: (COMPUTERS[k] && COMPUTERS[k].name) || k,
+               games: 0, wins: 0, draws: 0, losses: 0, margins: [], vs: {} };
+
+  for (const fx of fixtures){
+    const A = row[fx.a], B = row[fx.b];
+    if (!A || !B) continue;                 // a computer deleted mid-run
+    for (const m of fx.margins){
+      A.margins.push(m);  B.margins.push(-m);
+      A.games++;          B.games++;
+      if (m > 0){ A.wins++; B.losses++; }
+      else if (m < 0){ A.losses++; B.wins++; }
+      else { A.draws++; B.draws++; }
+    }
+    const s = _meanCI(fx.margins);
+    A.vs[fx.b] = { mean:  s.mean, ci: s.ci, n: s.n };
+    B.vs[fx.a] = { mean: -s.mean, ci: s.ci, n: s.n };
+  }
+
+  const rows = keys.map(k => {
+    const r = row[k], s = _meanCI(r.margins);
+    r.mean = s.mean; r.ci = s.ci;
+    r.winPct = r.games ? 100 * r.wins / r.games : 0;
+    return r;
+  });
+  // Ranked on average margin — the quantity every pairing contributes to
+  // equally. Win rate breaks ties, then the name, so the order is stable
+  // between renders instead of shuffling as results come in.
+  rows.sort((x, y) => y.mean - x.mean || y.winPct - x.winPct || x.name.localeCompare(y.name));
+  return rows;
+}
+
+function tourneyRun(keys, deals){
+  if (TOURNEY.running) return;
+  const host = document.getElementById('lab-tny-body');
+  if (keys.length < 2){
+    if (host) host.innerHTML = '<p class="err"><b>A tournament needs at least two computers.</b> '
+      + 'Tick some more of the field above.</p>';
+    return;
+  }
+  Object.assign(TOURNEY, { running: true, keys: keys.slice(),
+                           fixtures: tourneyFixtures(keys), at: 0, target: deals });
+  _tourneySync();
+  const step = () => {
+    if (!TOURNEY.running){ _tourneySync(); return; }
+    try {
+      // Time-boxed rather than a fixed deal count. A pairing with The Broker on
+      // both sides costs ~50x one between two cheap computers, so any fixed
+      // chunk is either a stutter on the expensive pairings or an idle page on
+      // the cheap ones. One deal is always played, so a pairing slower than the
+      // whole box still advances instead of spinning.
+      const until = Date.now() + TOURNEY.ms;
+      do {
+        const fx = TOURNEY.fixtures[TOURNEY.at];
+        if (!fx) break;
+        if (fx.deals >= TOURNEY.target){ TOURNEY.at++; continue; }
+        tourneyPlay(fx, 1);
+      } while (TOURNEY.at < TOURNEY.fixtures.length && Date.now() < until);
+    } catch (e){
+      TOURNEY.running = false; _tourneySync();
+      if (host) host.innerHTML = '<p class="err"><b>That tournament failed.</b> '
+        + (e && e.message ? e.message : e) + '</p>' + host.innerHTML;
+      console.error('[tournament] failed:', e);
+      return;
+    }
+    tourneyRender();
+    if (TOURNEY.at < TOURNEY.fixtures.length) TOURNEY.raf = requestAnimationFrame(step);
+    else { TOURNEY.running = false; _tourneySync(); }
+  };
+  TOURNEY.raf = requestAnimationFrame(step);
+}
+
+function tourneyStop(){
+  TOURNEY.running = false;
+  if (TOURNEY.raf) cancelAnimationFrame(TOURNEY.raf);
+  _tourneySync();
+  tourneyRender();
+}
+
+function _tourneySync(){
+  const run = document.getElementById('lab-tny-run');
+  const stop = document.getElementById('lab-tny-stop');
+  if (run){ run.disabled = TOURNEY.running; run.textContent = TOURNEY.running ? 'Running…' : 'Run tournament'; }
+  if (stop) stop.style.display = TOURNEY.running ? '' : 'none';
+}
+
+function tourneyRender(){
+  const host = document.getElementById('lab-tny-body');
+  const count = document.getElementById('lab-tny-count');
+  const prog = document.getElementById('lab-tny-prog');
+  if (!host) return;
+
+  const fxs = TOURNEY.fixtures;
+  const total = fxs.length * TOURNEY.target;
+  const done = fxs.reduce((s, f) => s + f.deals, 0);
+  if (prog) prog.style.width = total ? (100 * done / total).toFixed(1) + '%' : '0';
+  if (count) count.textContent = done
+    ? done + ' of ' + total + ' deals · ' + fxs.length + ' pairing' + (fxs.length === 1 ? '' : 's')
+    : '';
+  if (!done){
+    host.innerHTML = '<p class="note">No games yet — choose the field above and press '
+      + '<b>Run tournament</b>. Every pairing plays the same number of deals, so the '
+      + 'expensive computers set the pace.</p>';
+    return;
+  }
+
+  const rows = tourneyStandings(TOURNEY.keys, fxs);
+  const scale = Math.max(1, ...rows.map(r => Math.abs(r.mean) + 0.001));
+  const undecided = fxs.filter(f => { const s = _meanCI(f.margins); return Math.abs(s.mean) <= s.ci; });
+
+  // ---- standings
+  let html = '<table class="st"><thead><tr>'
+    + '<th>#</th><th>Computer</th><th>Won<span class="sub"> · drew · lost</span></th>'
+    + '<th>Win rate</th><th>Margin a game</th><th>&nbsp;</th></tr></thead><tbody>';
+  rows.forEach((r, i) => {
+    const w = 50 * Math.abs(r.mean) / scale;
+    html += '<tr><td class="num">' + (i + 1) + '</td>'
+      + '<td class="g">' + _esc(r.name) + '</td>'
+      + '<td class="num">' + r.wins + ' · ' + r.draws + ' · ' + r.losses + '</td>'
+      + '<td class="num">' + r.winPct.toFixed(1) + '%</td>'
+      + '<td class="med">' + _sgn(r.mean) + '<span class="sub" style="opacity:.5;font-size:.72rem"> ± '
+      +   r.ci.toFixed(1) + '</span></td>'
+      + '<td class="d"><span class="bar"><u></u>'
+      +   '<i class="' + (r.mean >= 0 ? 'pos' : 'neg') + '" style="'
+      +   (r.mean >= 0 ? 'left:50%;' : 'right:50%;') + 'width:' + w.toFixed(1) + '%"></i>'
+      +   '</span></td></tr>';
+  });
+  html += '</tbody></table>';
+
+  // ---- head to head
+  html += '<h3 style="font-family:\'Cinzel\',Georgia,serif;color:var(--gold,#d4a843);'
+        + 'font-size:.9rem;margin:22px 0 8px;letter-spacing:.03em">Head to head</h3>'
+        + '<div class="mxwrap"><table class="mx"><thead><tr><th></th>';
+  for (const c of rows) html += '<th>' + _esc(c.name) + '</th>';
+  html += '</tr></thead><tbody>';
+  for (const r of rows){
+    html += '<tr><th>' + _esc(r.name) + '</th>';
+    for (const c of rows){
+      if (c.key === r.key){ html += '<td class="self">—</td>'; continue; }
+      const v = r.vs[c.key];
+      if (!v || !v.n){ html += '<td class="self">·</td>'; continue; }
+      const cls = Math.abs(v.mean) <= v.ci ? 'near' : (v.mean > 0 ? 'win' : 'loss');
+      html += '<td class="' + cls + '" title="' + _esc(r.name) + ' vs ' + _esc(c.name)
+            + ': ' + _sgn(v.mean) + ' ± ' + v.ci.toFixed(1) + ' over ' + v.n + ' games">'
+            + _sgn(v.mean) + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table></div>';
+
+  html += '<p class="note">Each cell is the row\'s margin per game against the column, so the grid '
+    + 'mirrors about its diagonal. <span style="color:var(--gold-bright,#f0c860)">Gold</span> is a win, '
+    + '<span style="color:var(--danger,#c0605a)">red</span> a loss, and <b style="opacity:.45">faded</b> '
+    + 'a pairing whose interval still spans zero — those two are <b>not yet separated</b>, whatever '
+    + 'the order above suggests'
+    + (undecided.length ? ' (' + undecided.length + ' of ' + fxs.length + ' pairings, so far)' : '')
+    + '. Every deal is played twice with the seats swapped, so none of this is first-player advantage.'
+    + '</p>'
+    + '<p class="note">⚠️ A margin is only ever <b>relative to the field</b>. Add a weak computer and '
+    + 'everyone\'s average rises; the ranking is a statement about these ' + rows.length
+    + ' computers and not about Venture. The head-to-head grid is the part that does not move.</p>'
+    + (fxs.some(f => f.hung)
+        ? '<p class="note">' + fxs.reduce((s, f) => s + f.hung, 0) + ' game(s) hit the ply cap — '
+          + 'both sides fed off the discard piles and the deck never emptied.</p>'
+        : '');
+
+  host.innerHTML = html;
+}
+
+/* One checkbox per computer, all on. Rebuilt by cpuSyncList when the builder
+   saves or deletes one; the ticks survive it, and a computer that has just
+   appeared arrives ticked. */
+function tourneySyncField(){
+  const host = document.getElementById('lab-tny-field');
+  if (!host) return;
+  const was = {};
+  for (const el of host.querySelectorAll('input')) was[el.value] = el.checked;
+  host.innerHTML = Object.keys(COMPUTERS).map(k =>
+      '<label class="' + (was[k] === false ? '' : 'on') + '">'
+    + '<input type="checkbox" value="' + k + '"' + (was[k] === false ? '' : ' checked') + '>'
+    + _esc(COMPUTERS[k].name) + '</label>').join('');
+  for (const el of host.querySelectorAll('input'))
+    el.onchange = () => el.parentNode.classList.toggle('on', el.checked);
+}
+
+function tourneySelectedKeys(){
+  const host = document.getElementById('lab-tny-field');
+  if (!host) return Object.keys(COMPUTERS);
+  return Array.from(host.querySelectorAll('input'))
+              .filter(el => el.checked && COMPUTERS[el.value]).map(el => el.value);
+}
+
+function _tourneyInit(){
+  const btn = document.getElementById('lab-tny-run');
+  if (!btn) return;
+  tourneySyncField();
+  btn.onclick = () => {
+    const v = parseInt(document.getElementById('lab-tny-n').value, 10);
+    tourneyRun(tourneySelectedKeys(), Math.max(1, Math.min(2000, isFinite(v) ? v : 50)));
+  };
+  document.getElementById('lab-tny-stop').onclick = tourneyStop;
+  _tourneySync();
+  tourneyRender();
+}
+
 function _duelSync(){
   const run = document.getElementById('lab-duel-run');
   if (run){ run.disabled = DUEL.running; run.textContent = DUEL.running ? 'Running…' : 'Run duel'; }
@@ -855,7 +1133,7 @@ function _duelSync(){
 
 function duelSyncList(){
   const opts = Object.keys(COMPUTERS)
-    .map(k => '<option value="' + k + '">' + COMPUTERS[k].name + '</option>').join('');
+    .map(k => '<option value="' + k + '">' + _esc(COMPUTERS[k].name) + '</option>').join('');
   for (const [id, fallback] of [['lab-duel-a', 'broker'], ['lab-duel-b', 'patient']]){
     const sel = document.getElementById(id);
     if (!sel) continue;
@@ -894,9 +1172,10 @@ function cpuSyncList(){
   if (!sel) return;
   const keep = sel.value;
   sel.innerHTML = '<option value="all">All computers</option>'
-    + Object.keys(COMPUTERS).map(k => '<option value="' + k + '">' + COMPUTERS[k].name + '</option>').join('');
+    + Object.keys(COMPUTERS).map(k => '<option value="' + k + '">' + _esc(COMPUTERS[k].name) + '</option>').join('');
   if (keep && sel.querySelector('option[value="' + keep + '"]')) sel.value = keep;
   if (typeof duelSyncList === 'function') duelSyncList();   // builder computers duel too
+  if (typeof tourneySyncField === 'function') tourneySyncField();        // …and enter the field
   if (typeof labSyncOpponentList === 'function') labSyncOpponentList();  // …and play you
   cpuStop();
   cpuReset();
@@ -911,6 +1190,7 @@ function _cpuInit(){
   document.getElementById('lab-cpu-stop').onclick = cpuStop;
   document.getElementById('lab-cpu-reset').onclick = () => { cpuStop(); cpuReset(); };
   _duelInit();
+  _tourneyInit();
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _cpuInit);

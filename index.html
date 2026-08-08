@@ -169,6 +169,39 @@ table.st tr.tot td.g{font-weight:700;color:var(--gold,#d4a843)}
 #lab-stats details.ctl{margin:6px 0 14px}
 #lab-stats details.ctl summary{cursor:pointer;font-size:.86rem;opacity:.75;padding:4px 0}
 
+/* ---- Tournament ----------------------------------------------------------
+   The field: one checkbox per computer, reading as chips rather than a form. */
+#lab-tny-field{gap:6px}
+#lab-tny-field label{display:inline-flex;align-items:center;gap:5px;font-size:.84rem;
+  padding:3px 9px;border:1px solid rgba(212,168,67,.28);border-radius:999px;
+  background:rgba(255,255,255,.03);cursor:pointer;opacity:.55}
+#lab-tny-field label.on{opacity:1;border-color:rgba(212,168,67,.6);background:rgba(212,168,67,.1)}
+#lab-tny-field input{accent-color:var(--gold,#d4a843);margin:0}
+
+/* The head-to-head grid. Every cell is a margin from the ROW's point of view,
+   so the grid is antisymmetric — reading down a column is the mirror of
+   reading across its row, and that redundancy is what makes a wrong cell
+   visible. Wide fields scroll rather than squeezing the numbers. */
+.mxwrap{overflow-x:auto;margin-bottom:14px}
+table.mx{border-collapse:collapse;font-size:.84rem;font-variant-numeric:tabular-nums}
+table.mx th{font-weight:600;font-size:.74rem;letter-spacing:.04em;opacity:.6;padding:5px 8px;
+  text-align:right;white-space:nowrap}
+table.mx thead th{text-align:center;border-bottom:1px solid rgba(212,168,67,.2)}
+table.mx td{padding:5px 8px;text-align:center;border-bottom:1px solid rgba(255,255,255,.05);
+  min-width:5.5ch}
+table.mx td.self{opacity:.2}
+table.mx td.win{color:var(--gold-bright,#f0c860)}
+table.mx td.loss{color:var(--danger,#c0605a)}
+table.mx td.near{opacity:.45}          /* interval still spans zero — not decided */
+
+/* A margin bar in the standings: centred on zero, so the sign is visible before
+   the number is read. */
+.bar{position:relative;height:14px;min-width:120px}
+.bar i{position:absolute;top:2px;height:10px;border-radius:2px}
+.bar i.pos{background:var(--gold,#d4a843)}
+.bar i.neg{background:var(--danger,#c0605a)}
+.bar u{position:absolute;top:0;bottom:0;left:50%;width:1px;background:rgba(255,255,255,.25)}
+
 #lab-stats select{font:inherit;font-size:.9rem;color:var(--parchment,#e8dcc0);
   background:rgba(255,255,255,.06);border:1px solid rgba(212,168,67,.32);border-radius:6px;padding:4px 8px}
 #lab-cpu-prog{display:block;height:100%;width:0;background:var(--gold,#d4a843);transition:width .1s linear}
@@ -411,6 +444,23 @@ table.st tr.tot td.g{font-weight:700;color:var(--gold,#d4a843)}
     </div>
 
     <div id="lab-duel-body"></div>
+
+    <h1 style="margin-top:46px">Tournament</h1>
+    <p class="lede">Every computer against every other, all on the same footing. A duel settles one
+      pairing; this settles the whole field at once — who is actually strongest, who only looks
+      strong because of who they were measured against, and which pairings are still too close to
+      call. Each pairing plays the same deals with the seats swapped, exactly as a duel does.</p>
+
+    <div class="ctrls">
+      <label>Deals per pairing <input id="lab-tny-n" type="number" min="1" max="2000" step="10" value="50"></label>
+      <button id="lab-tny-run" class="primary">Run tournament</button>
+      <button id="lab-tny-stop" style="display:none">Stop</button>
+      <span id="lab-tny-count" class="count"></span>
+      <span class="progwrap"><span id="lab-tny-prog"></span></span>
+    </div>
+    <div class="ctrls" id="lab-tny-field"></div>
+
+    <div id="lab-tny-body"></div>
   </div>
 </div>
 

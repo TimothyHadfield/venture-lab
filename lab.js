@@ -1277,7 +1277,11 @@ function labSyncOpponentList(){
       html += '<optgroup label="' + o.group + '">';
       group = o.group;
     }
-    html += '<option value="' + o.value + '">Opponent: ' + o.label + '</option>';
+    // A computer's name is whatever was typed in the builder, so it is escaped
+    // on the way into markup — same rule the statistics tables follow.
+    html += '<option value="' + o.value + '">Opponent: '
+          + String(o.label).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          + '</option>';
   }
   if (group) html += '</optgroup>';
   sel.innerHTML = html;
