@@ -1,5 +1,35 @@
 # Venture Lab
 
+A study board and strategy lab for the card game Venture (a re-skin of the classic
+two-player game *Lost Cities*). Every hidden card is face-up, so you can see what
+the right move really was, pit computer players against each other, and measure
+which strategies actually win.
+
+**[▶ Open the live app](https://timothyhadfield.github.io/venture-lab/)** · best on a laptop
+
+<p align="center">
+  <img src="docs/screenshots/board.png" alt="The Venture Lab board mid-game: opponent's hand face-up, the whole draw pile laid out as colour columns on the right, and an info panel of projected turns and reachable points on the left" width="100%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/tournament.png" alt="Tournament results: seven computer players ranked by margin per game, with a head-to-head grid of every pairing" width="100%">
+</p>
+
+## Features
+- **Nothing hidden** — the opponent's hand is face-up and the whole draw pile is laid out in draw order, one column per colour.
+- **Numbers under every pile** — how much each colour could still be worth, how many turns you have left, and what a venture needs to break even.
+- **Play against any computer** — three easy-to-hard levels, seven built-in strategies, or one you wrote yourself.
+- **Build a computer** — write a strategy in a small Python-like language right in the page; it is saved in your browser and joins the rankings.
+- **Duels and tournaments** — every computer plays every other thousands of times, with win rates, confidence intervals and a head-to-head grid.
+- **Dealing statistics** — tens of thousands of simulated deals show how lopsided a typical hand is, checked against exact probability theory.
+- **Assistant and pick draw** — optional toggles that grey out cards you should hold, or let you choose which deck card to draw.
+
+## Built with
+Plain HTML, CSS and JavaScript (no build step, no accounts), Node test scripts, hosted on GitHub Pages.
+
+---
+
+## For developers
+
 A **perfect-information Venture board** for studying positions: the real game's
 board, with the whole draw pile laid out as colour columns, the opponent's hand
 face-up, and a per-colour **potential** readout under every pile.
