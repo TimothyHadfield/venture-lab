@@ -36,6 +36,10 @@ Live at <https://timothyhadfield.github.io/venture-lab/>.
 - **Measure, don't reason.** Every strong claim in these files came from a
   paired run, and several overturned a confident prediction — including three of
   mine, recorded below. Intuition about this game has a bad record.
+- **Phone (2026-09-27):** below 600px the top bar wraps (lab.js measures it into
+  `--lab-top` / `LAB.topInset`) and the info panel is hidden. Headless WebKit on
+  Windows has no 3D transforms, so there the hand fans look skewed; Chrome shows
+  the true shape. lab.js normalises the card matrices so they still appear.
 
 ## 2. What exists
 

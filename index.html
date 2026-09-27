@@ -14,7 +14,7 @@
 #lab-bar{
   position:fixed;top:0;left:0;right:0;z-index:6000;
   display:flex;align-items:center;gap:8px;flex-wrap:wrap;
-  height:44px;padding:0 52px;
+  min-height:44px;padding:0 52px;
   background:rgba(26,15,10,.86);border-bottom:1px solid var(--felt-edge,rgba(212,168,67,.25));
   font-family:'Crimson Pro',Georgia,serif;
 }
@@ -48,8 +48,16 @@
 }
 #lab-bar button.on{background:var(--gold,#d4a843);border-color:var(--gold,#d4a843);color:#241606;font-weight:600}
 #lab-bar .lab-sep{flex:1}
+/* Phone: the bar wraps onto extra rows (lab.js measures its real height into
+   --lab-top / LAB.topInset), and the info panel steps aside — at phone width
+   its 170px strip left the board no room. Must match LAB_NARROW in lab.js. */
+@media (max-width:600px){
+  #lab-bar{padding:6px 8px;gap:6px}
+  #lab-bar .lab-sep{display:none}
+  #lab-info{display:none}
+}
 /* The board sits under the fixed bar. */
-#game-screen{padding-top:44px}  /* == LAB.topInset */
+#game-screen{padding-top:var(--lab-top,44px)}  /* == LAB.topInset */
 
 /* ---- Potential readout ---------------------------------------------------
    One label per colour per player, centred under its pile column. Positioned
@@ -71,7 +79,7 @@
 #game-screen .corner-btn{display:none}
 
 #vc-deck{
-  position:fixed;top:44px;right:4px;bottom:4px;z-index:5000;overflow:hidden;
+  position:fixed;top:var(--lab-top,44px);right:4px;bottom:4px;z-index:5000;overflow:hidden;
   background:rgba(20,14,8,.9);border:1px solid #c0a030;border-radius:8px;padding:8px;
   box-shadow:0 4px 16px rgba(0,0,0,.5);
 }
@@ -84,7 +92,7 @@
    entries are declared in lab.js (LAB_INFO) and rendered from there, so adding
    one later is an object in a list, not markup here. */
 #lab-info{
-  position:fixed;top:44px;left:4px;bottom:4px;width:170px;z-index:5000;overflow:auto;
+  position:fixed;top:var(--lab-top,44px);left:4px;bottom:4px;width:170px;z-index:5000;overflow:auto;
   background:rgba(20,14,8,.9);border:1px solid #c0a030;border-radius:8px;padding:8px;
   box-shadow:0 4px 16px rgba(0,0,0,.5);
   font-family:'Crimson Pro',Georgia,serif;color:var(--parchment,#e8dcc0);
@@ -119,7 +127,7 @@
 .lab-blocked{filter:grayscale(1) brightness(.42);pointer-events:none!important;cursor:default}
 
 #lab-stats{
-  position:fixed;inset:44px 0 0 0;z-index:4000;overflow:auto;
+  position:fixed;inset:var(--lab-top,44px) 0 0 0;z-index:4000;overflow:auto;
   background:var(--felt,#1a0f0a);color:var(--parchment,#e8dcc0);
   font-family:'Crimson Pro',Georgia,serif;
 }
@@ -210,7 +218,7 @@ table.mx td.near{opacity:.45}          /* interval still spans zero — not deci
    Same furniture as the statistics section (it is the same kind of page), plus
    the editor and the reference column. */
 #lab-build{
-  position:fixed;inset:44px 0 0 0;z-index:4000;overflow:auto;
+  position:fixed;inset:var(--lab-top,44px) 0 0 0;z-index:4000;overflow:auto;
   background:var(--felt,#1a0f0a);color:var(--parchment,#e8dcc0);
   font-family:'Crimson Pro',Georgia,serif;
 }

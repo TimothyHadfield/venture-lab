@@ -61,6 +61,20 @@ function extendedUndo(){ undoLastPlay(); }
 // Aliased so dismissing a spread pile doesn't throw.
 function renderBoard(){ renderGame(); }
 
+/* Card transforms, normalised. The renderer's homography comes out scaled by
+   thousands (its w term is ~4000). Chrome divides that out, but a WebKit that
+   flattens 3D transforms keeps the raw numbers, so every hand card and the draw
+   pile were painted millions of pixels off-screen. Dividing all sixteen entries
+   by w is the SAME projective transform, just well-scaled — nothing changes
+   where 3D works. Wrapped here, not edited in vendor/, like the other seams. */
+(function(){
+  const raw = fourCornerRenderer.computeTransformMatrix.bind(fourCornerRenderer);
+  fourCornerRenderer.computeTransformMatrix = (corners) => {
+    const m = raw(corners);
+    return (m && m[15]) ? m.map(v => v / m[15]) : m;
+  };
+})();
+
 /* A minimal toast so messages from the real action code still surface. */
 let _labFlashTimer = 0;
 function _labFlash(msg){
@@ -1055,6 +1069,9 @@ function _labDeckPanel(){
     _deckEl.innerHTML =
       '<div id="vc-deck-head"><b id="vc-deck-h"></b></div><div id="vc-deck-list"></div>';
     document.body.appendChild(_deckEl);
+    // Never wider than the strip reserved for it (its header text would
+    // otherwise stretch it across a phone-width board).
+    _deckEl.style.maxWidth = Math.max(0, (LAB.rightInset || 0) - 8) + 'px';
   }
   _deckEl.style.display = '';
   if (!gameState) return;
@@ -1227,7 +1244,7 @@ function _labSetDeckPanel(on){
   const w = LAB.revealDeck ? _labDeckPanelWidth() : 0;
   LAB.rightInset = w;
   document.getElementById('game-screen').style.paddingRight = w + 'px';
-  if (_deckEl) _deckEl.style.width = Math.max(0, w - 8) + 'px';
+  if (_deckEl) _deckEl.style.width = _deckEl.style.maxWidth = Math.max(0, w - 8) + 'px';
   _deckSig = '';                       // geometry changed — force a rebuild
   computeLayout._vw = null;            // invalidate the layout cache
   renderGame._snapNextRender = true;
@@ -1314,11 +1331,22 @@ function _labSyncToggles(){
    gets. LAB.leftInset is what layout.js subtracts; #game-screen's padding-left
    matches it, so the board never runs underneath the panel. */
 const LAB_INFO_W = 170;                 // == #lab-info width in index.html
+const LAB_NARROW = '(max-width:600px)'; // == the phone @media in index.html
 function _labSetInfoInset(){
-  LAB.leftInset = LAB_INFO_W + 8;       // + the panel's 4px offset each side
+  // On a phone the panel is hidden (index.html), so it reserves nothing.
+  LAB.leftInset = window.matchMedia(LAB_NARROW).matches ? 0 : LAB_INFO_W + 8;   // + the panel's 4px offset each side
   document.getElementById('game-screen').style.paddingLeft = LAB.leftInset + 'px';
   computeLayout._vw = null;             // invalidate the layout cache
   renderGame._snapNextRender = true;
+}
+
+/* The bar is one 44px row on a laptop, but wraps onto more rows on a phone.
+   Everything that sits under it (board, panels, pages) reads --lab-top, and
+   layout.js reads LAB.topInset, so both follow the bar's real height. */
+function _labSetTopInset(){
+  LAB.topInset = document.getElementById('lab-bar').offsetHeight || 44;
+  document.documentElement.style.setProperty('--lab-top', LAB.topInset + 'px');
+  computeLayout._vw = null;             // invalidate the layout cache
 }
 
 function _labSetAssist(on){
@@ -1363,10 +1391,17 @@ function _labInit(){
 
   labSyncOpponentList();              // built-in levels + every computer
   _labHookHandOrder();                // hands read as a ranking, best colour left
+  _labSetTopInset();                  // the bar's real height (it wraps on a phone)
   _labSetInfoInset();                 // reserves the left strip for the info panel
   _labSetDeckPanel(LAB.revealDeck);   // reserves the strip and sizes the board for it
   _labSyncToggles();
   newLabGame();
+  // The web fonts can land after this and re-wrap the bar; re-measure then.
+  if (document.fonts) document.fonts.ready.then(() => {
+    const h = LAB.topInset;
+    _labSetTopInset();
+    if (LAB.topInset !== h){ renderGame._snapNextRender = true; renderGame(); }
+  });
 
   // The board is sized from the viewport — re-render on resize, as the real
   // client does (renderGame._snapNextRender makes it snap rather than glide).
@@ -1374,6 +1409,8 @@ function _labInit(){
     // The reserved strip is derived from the card size, which is derived from
     // the viewport — so a resize has to re-reserve before the board re-solves.
     _labCS = null;
+    _labSetTopInset();
+    _labSetInfoInset();
     if (LAB.revealDeck) _labSetDeckPanel(true);
     else { renderGame._snapNextRender = true; renderGame(); }
   });
