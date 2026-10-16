@@ -350,17 +350,27 @@ function _labCpuFail(bot, why){
 }
 
 let _labAIBusy = false;
+
+/* New game while the opponent is between its two waits: those timers belong to
+   the OLD game and must not act on the new one (they did — the opponent played
+   a card on your first turn and left you in the draw phase). Each turn carries
+   the generation it started in and gives up if it has moved on. */
+let _labAIGen = 0;
+function _labCancelAI(){ _labAIGen++; _labAIBusy = false; }
+
 function _labAITurn(){
   if (_labAIBusy || !gameState || gameState.status === 'finished') return;
   const slot = gameState.currentTurn;
   if (slot === userSlot) return;
   _labAIBusy = true;
+  const gen = _labAIGen;
   // A computer decides its card and its draw together, from the position
   // BEFORE the card is played — that is the contract playDuelGame asks on, and
   // therefore the one these computers were measured making. The whole decision
   // is held here across the two halves of the turn.
   let cpuTurn = null;
   setTimeout(() => {
+    if (gen !== _labAIGen) return;
     if (gameState.phase === 'play'){
       const cpu = _labCpuChooseTurn(slot);
       const mv = cpu || _labAIChoosePlay(slot);
@@ -371,6 +381,7 @@ function _labAITurn(){
       renderGame();
     }
     setTimeout(() => {
+      if (gen !== _labAIGen) return;
       if (gameState.currentTurn === slot && gameState.phase === 'draw'){
         // When a computer decided this turn, its draw is the whole answer:
         // a pile if it named one, and otherwise THE DECK — not the built-in
@@ -1206,8 +1217,8 @@ function newLabGame(){
   selectedCard = null;
   lastPlayedCard = null;
   spreadPile = null;
-  _labAIBusy = false;
-  _labCpuWarned = false;              // one computer-failure message per game
+  _labCancelAI();                     // the last game's opponent turn stops here
+  _labCpuWarned = false;             // one computer-failure message per game
 
   gameState = ENGINE.initGame(variant, false);
   gameState.currentTurn = Math.random() < 0.5 ? 'player1' : 'player2';

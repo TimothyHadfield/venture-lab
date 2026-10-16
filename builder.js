@@ -375,7 +375,7 @@ function buildCompile(source){
       // it. One deck card per turn, so that is also how many plays you have.
       deck: poolN - view.hand.length,
       turns: poolN - view.hand.length,
-      opphand: view.opphand ? view.opphand.length : 0,
+      opphand: view.oppHand ? view.oppHand.length : 0,     // duelView's field name
       legal: c => view.playable.indexOf(c) >= 0,
       potential: color => potentialFor(view.piles, view.pool, color),
       playCost: card => playCost(view.piles, view.pool, card),
@@ -496,8 +496,8 @@ function buildRenderList(){
   host.innerHTML = list.map(c => {
     let err = '';
     try { buildCompile(c.code); }
-    catch (e){ err = ' <span class="bad" title="' + String(e.message).replace(/"/g, "'")
-                   + '">line ' + e.line + ': ' + e.message + '</span>'; }
+    catch (e){ err = ' <span class="bad" title="' + _buildEsc(String(e.message).replace(/"/g, "'"))
+                   + '">line ' + e.line + ': ' + _buildEsc(e.message) + '</span>'; }
     return '<div class="bc-item' + (BUILD.editing === c.id ? ' on' : '') + '">'
          + '<b>' + _buildEsc(c.name) + '</b>' + err
          + '<span class="bc-act">'
@@ -523,7 +523,7 @@ function buildOpen(id){
   BUILD.editing = c.id;
   document.getElementById('lab-build-name').value = c.name;
   document.getElementById('lab-build-code').value = c.code;
-  _buildStatus('Editing “' + c.name + '”.', '');
+  _buildStatus('Editing “' + _buildEsc(c.name) + '”.', '');
   buildRenderList();
 }
 
@@ -551,7 +551,7 @@ function buildSave(){
   const code = document.getElementById('lab-build-code').value;
   if (!name){ _buildStatus('Give it a name first.', 'bad'); return; }
   try { buildCompile(code); }
-  catch (e){ _buildStatus('Line ' + e.line + ': ' + e.message, 'bad'); return; }
+  catch (e){ _buildStatus('Line ' + e.line + ': ' + _buildEsc(e.message), 'bad'); return; }
 
   const list = buildLoadAll();
   if (BUILD.editing){
@@ -566,7 +566,7 @@ function buildSave(){
   buildSaveAll(list);
   buildRegisterAll();
   buildRenderList();
-  _buildStatus('Saved. “' + name + '” is in the Computers list — the run counts were '
+  _buildStatus('Saved. “' + _buildEsc(name) + '” is in the Computers list — the run counts were '
              + 'reset, since every computer has to be measured over the same number of games.', 'ok');
 }
 
@@ -579,7 +579,7 @@ function buildDelete(id){
   if (BUILD.editing === id) buildNew();
   buildRegisterAll();
   buildRenderList();
-  _buildStatus('Deleted “' + c.name + '”.', '');
+  _buildStatus('Deleted “' + _buildEsc(c.name) + '”.', '');
 }
 
 /* Run the code in the editor over a few hundred solitaire games, without saving
@@ -590,7 +590,7 @@ function buildTest(){
   const code = document.getElementById('lab-build-code').value;
   let decide;
   try { decide = buildCompile(code); }
-  catch (e){ _buildStatus('Line ' + e.line + ': ' + e.message, 'bad'); return; }
+  catch (e){ _buildStatus('Line ' + e.line + ': ' + _buildEsc(e.message), 'bad'); return; }
 
   const N = 200;
   const scores = [];
@@ -601,7 +601,7 @@ function buildTest(){
       scores.push(r.score);
       turns += r.played + r.discarded;
     }
-  } catch (e){ _buildStatus('It ran, but the game rejected a move: ' + e.message, 'bad'); return; }
+  } catch (e){ _buildStatus('It ran, but the game rejected a move: ' + _buildEsc(e.message), 'bad'); return; }
 
   scores.sort((a, b) => a - b);
   const median = scores[Math.floor(scores.length / 2)];

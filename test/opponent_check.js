@@ -330,5 +330,36 @@ console.log('the built-in levels are untouched by any of this');
 }
 
 console.log('');
+console.log('New game while the opponent is still thinking');
+{
+  // _labAITurn waits twice (play, then draw). Pressing New game inside those
+  // waits used to let the OLD turn's timers play into the NEW game: on a fresh
+  // deal where you move first, the opponent dropped a card on your turn and
+  // left you stuck in the draw phase, never having played. newLabGame calls
+  // _labCancelAI (it used to only clear _labAIBusy, which is what the fallback
+  // below does, so this check fails on that code).
+  const queue = [];
+  ctx.setTimeout = f => { queue.push(f); };            // hold the waits
+  B.setAI('solid');
+  const old = fresh();                                 // the opponent is to move
+  B.setState(old);
+  B.turn();                                            // its turn starts, then waits
+  ok('the opponent turn is waiting on its timer', queue.length === 1);
+
+  vm.runInContext('typeof _labCancelAI === "function" ? _labCancelAI() : (_labAIBusy = false)', ctx);
+  const gs = B.ENGINE.initGame('classic', false);      // New game: you move first
+  gs.currentTurn = 'player1';
+  B.setState(gs);
+  while (queue.length) queue.shift()();                // the stale timers fire
+
+  const onTable = B.CONFIG.colors.reduce((n, c) =>
+    n + gs.playPiles[OPP][c].length + gs.discards[c].length, 0);
+  eq('the opponent put nothing on the new table', onTable, 0);
+  eq('it still holds its 8 cards', gs.hands[OPP].length, 8);
+  eq('and it is still your turn to PLAY', [gs.currentTurn, gs.phase], ['player1', 'play']);
+  ctx.setTimeout = f => f();
+}
+
+console.log('');
 console.log(failed ? failed + ' FAILED' : 'all passed');
 process.exit(failed ? 1 : 0);

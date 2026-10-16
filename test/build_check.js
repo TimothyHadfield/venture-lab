@@ -246,5 +246,28 @@ console.log('\nwhole solitaire games');
      noop.fallbacks === r.played + r.discarded, noop.fallbacks + ' of ' + (r.played + r.discarded));
 }
 
+console.log('\nopphand in a duel');
+{
+  // The reference promises `opphand` is "0 in the solitaire runner" — so in a
+  // duel (and on the board, which hands over the same duel view) it has to be
+  // the size of the opponent's hand. The duel view spells the field `oppHand`.
+  const prog = B.compile([
+    'if opphand > 5:',
+    '    for card in hand:',
+    '        if card num min:',
+    '            discard',
+    'for card in playable:',
+    '    if card num min:',
+    '        play',
+  ].join('\n'));
+  const deck = B.RULES.createDrawPile();
+  const hands = { player1: deck.splice(-8), player2: deck.splice(-8) };
+  const piles = { player1: empty(), player2: empty() };
+  const v = ctx.duelView('player1', hands, piles, empty(), deck, null, () => 0.5);
+  eq('reads the opponent\'s 8 cards, so the opphand branch fires', prog(v).action, 'discard');
+  const solo = view([card('red', 2), card('green', 9)]);
+  eq('...and is still 0 in solitaire, so the same program plays there', prog(solo).action, 'play');
+}
+
 console.log(failed ? '\n' + failed + ' FAILED' : '\nall passed');
 process.exit(failed ? 1 : 0);

@@ -347,14 +347,16 @@ function maybeAI(){
   if(!G || G.over || G.mode==='hotseat') return;
   if(G.turn!=='p2') return;
   busy=true; render();
+  const game=G;                      // New Game mid-turn: these timers belong to the old game
   setTimeout(()=>{
+    if(G!==game) return;
     const diff=document.getElementById('diff').value;
     const mv=aiMove('p2',diff);
     applyAI(mv);
     render();
     // draw phase follows the play in a separate beat
     if(!G.over && G.turn==='p2'){
-      setTimeout(()=>{ const mv2=aiMove('p2',diff); applyAI(mv2); busy=false; render(); maybeAI(); }, 420);
+      setTimeout(()=>{ if(G!==game) return; const mv2=aiMove('p2',diff); applyAI(mv2); busy=false; render(); maybeAI(); }, 420);
     } else { busy=false; render(); }
   }, 420);
 }
