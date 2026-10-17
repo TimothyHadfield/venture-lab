@@ -1,2 +1,4 @@
 # Saved copy of a third-party game page, kept locally for reference only.
 reference/
+# Local Claude worktrees and test state.
+.claude/

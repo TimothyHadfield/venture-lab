@@ -208,7 +208,7 @@ table.mx td.near{opacity:.45}          /* interval still spans zero — not deci
 
 /* A margin bar in the standings: centred on zero, so the sign is visible before
    the number is read. */
-.bar{position:relative;height:14px;min-width:120px}
+.bar{display:block;position:relative;height:14px;min-width:120px}  /* block: an inline span ignores height/min-width, so it was 0 wide */
 .bar i{position:absolute;top:2px;height:10px;border-radius:2px}
 .bar i.pos{background:var(--gold,#d4a843)}
 .bar i.neg{background:var(--danger,#c0605a)}
@@ -297,6 +297,20 @@ table.mx td.near{opacity:.45}          /* interval still spans zero — not deci
   padding:18px 34px;opacity:0;pointer-events:none;transition:opacity .25s ease;text-align:center;
 }
 #lab-result.on{opacity:1}
+/* In-page OK/Cancel (labConfirm in lab.js) — replaces the browser's confirm(). */
+#lab-confirm{position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.55);
+  display:flex;align-items:center;justify-content:center;padding:16px}
+#lab-confirm .box{background:#241606;border:1px solid var(--gold,#d4a843);border-radius:12px;
+  color:var(--parchment,#e8dcc0);font-family:'Crimson Pro',Georgia,serif;
+  padding:18px 22px;max-width:360px;width:100%;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+#lab-confirm .msg{font-family:'Cinzel',Georgia,serif;color:var(--gold-bright,#f0c860);
+  font-size:1.05rem;line-height:1.4;margin:0 0 16px;overflow-wrap:anywhere}
+#lab-confirm .acts{display:flex;justify-content:flex-end;gap:10px}
+#lab-confirm button{font:inherit;font-size:.9rem;color:var(--parchment,#e8dcc0);
+  background:rgba(255,255,255,.06);border:1px solid rgba(212,168,67,.32);
+  border-radius:6px;padding:4px 14px;cursor:pointer}
+#lab-confirm button:hover{border-color:var(--gold,#d4a843)}
+#lab-confirm button.primary{background:var(--gold,#d4a843);border-color:var(--gold,#d4a843);color:#241606;font-weight:600}
 </style>
 </head>
 <body>

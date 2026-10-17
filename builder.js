@@ -574,8 +574,11 @@ function buildDelete(id){
   const list = buildLoadAll();
   const c = list.find(x => x.id === id);
   if (!c) return;
-  if (!confirm('Delete “' + c.name + '”?')) return;
-  buildSaveAll(list.filter(x => x.id !== id));
+  labConfirm('Delete “' + c.name + '”?').then(ok => { if (ok) _buildDeleteNow(id, c); });
+}
+
+function _buildDeleteNow(id, c){
+  buildSaveAll(buildLoadAll().filter(x => x.id !== id));
   if (BUILD.editing === id) buildNew();
   buildRegisterAll();
   buildRenderList();

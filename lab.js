@@ -53,7 +53,7 @@ function toggleReplayDeck(){}
 function pushUndoSnapshot(){}
 function popUndoSnapshot(){}
 function onTurnChange(){}
-function confirmAbandonGame(){ if (confirm('Start a new game?')) newLabGame(); }
+function confirmAbandonGame(){ labConfirm('Start a new game?').then(ok => { if (ok) newLabGame(); }); }
 function showGameMenu(){ _labFlash('Menu lives in the top bar'); }
 function extendedUndo(){ undoLastPlay(); }
 // The spread-view backdrop in the game's own markup calls renderBoard() — a
@@ -74,6 +74,43 @@ function renderBoard(){ renderGame(); }
     return (m && m[15]) ? m.map(v => v / m[15]) : m;
   };
 })();
+
+/* In-page OK/Cancel instead of the browser's confirm() (Tim: no "site says"
+   dialogs). Resolves true on OK/Enter, false on Cancel/Escape/backdrop. */
+function labConfirm(msg, opts){
+  opts = opts || {};
+  return new Promise(resolve => {
+    const prev = document.getElementById('lab-confirm');
+    if (prev) prev.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'lab-confirm';
+    wrap.setAttribute('role', 'dialog');
+    wrap.setAttribute('aria-modal', 'true');
+    const box = document.createElement('div'); box.className = 'box';
+    const p = document.createElement('p'); p.className = 'msg'; p.textContent = msg;
+    const acts = document.createElement('div'); acts.className = 'acts';
+    const no = document.createElement('button'); no.type = 'button';
+    no.textContent = opts.cancelText || 'Cancel';
+    const yes = document.createElement('button'); yes.type = 'button'; yes.className = 'primary';
+    yes.textContent = opts.okText || 'OK';
+    acts.append(no, yes); box.append(p, acts); wrap.append(box);
+    const done = (v) => {
+      document.removeEventListener('keydown', onKey, true);
+      wrap.remove();
+      resolve(v);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); done(false); }
+      else if (e.key === 'Enter'){ e.preventDefault(); e.stopPropagation(); done(document.activeElement !== no); }
+    };
+    no.onclick = () => done(false);
+    yes.onclick = () => done(true);
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) done(false); });
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(wrap);
+    yes.focus();
+  });
+}
 
 /* A minimal toast so messages from the real action code still surface. */
 let _labFlashTimer = 0;

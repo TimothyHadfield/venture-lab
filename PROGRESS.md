@@ -15,8 +15,12 @@ Live at <https://timothyhadfield.github.io/venture-lab/>.
 - **2026-10-16 sweep:** fixed New game during the opponent's turn (its stale
   timers played into the new game, on index.html and simple.html), the builder's
   `opphand` always reading 0, and builder messages eating `<…>` in names. Added
-  `CLAUDE.md` and a `.gitignore` for the local `reference/` folder. Open for Tim:
-  the tournament's margin bars render at zero width (never visible).
+  `CLAUDE.md` and a `.gitignore` for the local `reference/` folder.
+- **2026-10-17 fixes:** the browser's confirm() boxes (New game from the hidden
+  back arrow, Delete in the builder) are now an in-page OK/Cancel (`labConfirm`
+  in lab.js, `#lab-confirm` CSS; Enter = OK, Escape/backdrop = Cancel). The
+  tournament's margin bars were 0 wide because `.bar` is an inline `<span>`
+  (height/min-width ignored); `display:block` fixed it. `.claude/` git-ignored.
 
 ---
 
