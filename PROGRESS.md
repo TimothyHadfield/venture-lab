@@ -187,7 +187,7 @@ Smaller, known, unfixed:
 
 The **cheat toolkit** for the live site lives at
 `…/Code Projects/Board and Card Games/Venture_Cheat/` with its own `progress.md`
-— a separate concern (it plays the real game against the user's brother), but it
+— a separate concern (it plays the real game online), but it
 solved several of the same problems first and its notes are worth reading before
 rebuilding one: an exact endgame solver, a Sage oracle, a repetition fail-safe,
 and the same "measure, don't reason" discipline.
