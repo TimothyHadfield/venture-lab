@@ -21,6 +21,9 @@ Live at <https://timothyhadfield.github.io/venture-lab/>.
   in lab.js, `#lab-confirm` CSS; Enter = OK, Escape/backdrop = Cancel). The
   tournament's margin bars were 0 wide because `.bar` is an inline `<span>`
   (height/min-width ignored); `display:block` fixed it. `.claude/` git-ignored.
+- **2026-10-17 site icon:** `icon.svg` (two fanned cards, gold + cream on dark
+  brown) as the tab favicon and `apple-touch-icon.png` (180 px) for the iPhone
+  home screen, linked from index.html and simple.html.
 
 ---
 
