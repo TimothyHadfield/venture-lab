@@ -24,6 +24,25 @@ Live at <https://timothyhadfield.github.io/venture-lab/>.
 - **2026-10-17 site icon:** `icon.svg` (two fanned cards, gold + cream on dark
   brown) as the tab favicon and `apple-touch-icon.png` (180 px) for the iPhone
   home screen, linked from index.html and simple.html.
+- **2026-10-27 board-games wave (Play mode):** the site now **opens in Play**
+  (opponent hand face-down, computer sees a fair shuffle of unseen cards via
+  `_labFairView`), **Lab** button one tap away restores every study tool and
+  remembers them (`venture-lab-mode`, `venture-lab-study`). New `play.js`:
+  1- or 3-round match (leader starts next round; tie → whoever didn't start),
+  result table, rules sheet + 8-step guided game (`_coach`), sounds/settings
+  (`_fx`), My stats + Daily game + 6 achievements (`_profile`, Elo from
+  `ratings.js`, measured by `test/rate_levels.js` over 18,000 games), the
+  computer's move said on the flash line. **Home-screen install + offline**
+  (`_pwa` 1.1.0: `sw.js`, `js/pwa.js`, manifest, icons; fonts now served from
+  `fonts/` so offline looks the same). **Dark wooden table** (`_table`, palette
+  kept). Commits c38accc, 928fbf7, 743c737, abb0869.
+  **Online NOT built** — Online guard: ~400–540 writes / ~1,000 reads per
+  3-round match (2 humans alternate, so every turn must reach the other phone);
+  busy day ≈ 60–80K writes vs the 2K (10%) limit. Waits on Tim.
+  NOT verified: real iPhone (hand fit, home-screen app), guided tour past step 1
+  by hand, Daily game end-to-end. Tim's calls: wording of rules/tour/notes,
+  wood colour, laptop board size (reviewer: small at 1440), per-colour score
+  breakdown in the round result, saving a match across reload.
 
 ---
 
@@ -53,6 +72,13 @@ Live at <https://timothyhadfield.github.io/venture-lab/>.
   `--lab-top` / `LAB.topInset`) and the info panel is hidden. Headless WebKit on
   Windows has no 3D transforms, so there the hand fans look skewed; Chrome shows
   the true shape. lab.js normalises the card matrices so they still appear.
+- **Play vs Lab (2026-10-27):** tests that assume perfect information must set
+  `LAB.mode = "lab"` (see opponent_check.js); `fair_check.js` guards Play.
+  play.js wraps `_labGameOver`, `_labAITurn` and `_labSetOpponentName` by
+  reassignment — rename those and Play breaks. Kit copies (`js/fx|coach|profile|pwa.js`,
+  `css/*.css`, `sw.js`, `tools/*.mjs`) stay unchanged. The deploy step stamps
+  both `?v=DEV` and `data-version="DEV"`. `node tools/pwa-check.mjs` (in `--slow`)
+  must stay 18/18.
 
 ## 2. What exists
 
