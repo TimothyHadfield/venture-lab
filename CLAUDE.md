@@ -20,6 +20,8 @@ builder's saved computers in `localStorage` (key `venture-lab-computers`).
 | `builder.js` | Build a computer: the Python-shaped language and its page |
 | `vendor/` | the live Venture client's presentation stack, vendored (see Traps) |
 | `simple.html` | the earlier standalone lab, own renderer, kept as-is |
+| `js/online.js` | shared online kit v2 (copy of `Board and Card Games/_online/online.js`; never edit here) |
+| `js/lc-online.js`, `js/lc-net.js` | online friend rooms: the game for the kit, and the board ↔ room bridge (see PROGRESS.md 2026-10-27) |
 | `test/` | Node checks that slice the real functions out of the source |
 | `docs/screenshots/` | images used by README |
 | `.github/workflows/pages.yml` | the Pages deploy |

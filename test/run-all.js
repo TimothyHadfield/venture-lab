@@ -26,6 +26,7 @@ const FAST = [
   ['opponent_check.js',  'playing a computer on the board'],
   ['fair_check.js',      'play mode: the computer cannot see your hand or the deck'],
   ['tourney_check.js',   'the tournament: fixtures, standings, the page'],
+  ['online_check.js',    'online: rules, scores and secrets of the room game'],
 ];
 const SLOW = [
   ['realist_check.js',   'reachable potential + The Patient, 400 paired games'],

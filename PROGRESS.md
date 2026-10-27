@@ -36,13 +36,31 @@ Live at <https://timothyhadfield.github.io/venture-lab/>.
   (`_pwa` 1.1.0: `sw.js`, `js/pwa.js`, manifest, icons; fonts now served from
   `fonts/` so offline looks the same). **Dark wooden table** (`_table`, palette
   kept). Commits c38accc, 928fbf7, 743c737, abb0869.
-  **Online NOT built** — Online guard: ~400–540 writes / ~1,000 reads per
-  3-round match (2 humans alternate, so every turn must reach the other phone);
-  busy day ≈ 60–80K writes vs the 2K (10%) limit. Waits on Tim.
+  ~~Online NOT built~~ (built 2026-10-27, below).
   NOT verified: real iPhone (hand fit, home-screen app), guided tour past step 1
   by hand, Daily game end-to-end. Tim's calls: wording of rules/tour/notes,
   wood colour, laptop board size (reviewer: small at 1440), per-colour score
   breakdown in the round result, saving a match across reload.
+- **2026-10-27 online ON (friend rooms):** Tim: "I don't think my games are going
+  to have many users for a long time. I think it'll be okay to enable it to all
+  games for now and we can disable it later if it becomes too much". Earlier rule
+  still holds: nothing beyond the existing Firebase (`th-board-games`, shared
+  `_online` kit) and nothing that takes a big share of the free plan — ask first.
+  New game → **Online** → Make a room (5-letter code) / Join. One round, 2 phones,
+  an empty seat becomes a computer at Start. Files: `js/online.js` (kit v2 copy,
+  byte-identical, `-text` in .gitattributes — never edit it here),
+  `js/lc-online.js` (rules for the kit: hands in private docs, room holds piles,
+  discards and counts only), `js/lc-net.js` (board ↔ room: rebuilds `gameState`
+  from each snapshot, fills the opponent's hand + deck with unseen cards, wraps
+  the 4 move functions, `_labAITurn`, New game, back arrow, Lab button),
+  `test/online_check.js` (in run-all FAST). **Cost measured** (kit harness):
+  239 writes / 491 reads per game. Online results go to My stats as mode
+  "Online" (no Elo), once per room. Verified 2026-10-27: two headless WebKit
+  iPhones on real Firestore played a whole round (92–94 moves, ~1.4 min) with a
+  mid-game reload of one phone; board matched the room every step; no console
+  errors except WebKit's aborted Firestore channel at the reload itself.
+  NOT verified: real iPhones; the lab tools are blocked online (fake cards).
+  Tim's calls: wording ("Online", "Make a room", "Leave room"), no rematch button.
 
 ---
 

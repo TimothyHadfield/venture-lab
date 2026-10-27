@@ -365,6 +365,13 @@ body.lab-mode .play-only{display:none}
 .ps-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0}
 .ps-row>span:first-child{opacity:.8}
 .ps-seg{display:inline-flex;gap:6px}
+.play-sheet input[type=text]{font:inherit;font-size:16px;color:var(--parchment,#e8dcc0);background:rgba(255,255,255,.06);
+  border:1px solid rgba(212,168,67,.32);border-radius:6px;padding:6px 10px;min-height:36px;width:11em;max-width:60%}
+.play-sheet input[type=text]:focus{outline:none;border-color:var(--gold,#d4a843)}
+#net-code{text-transform:uppercase;letter-spacing:.15em}
+.net-code{font-family:'Cinzel',Georgia,serif;font-size:2.2rem;font-weight:700;letter-spacing:.2em;text-align:center;
+  color:var(--gold-bright,#f0c860);margin:4px 0 6px;user-select:all;-webkit-user-select:all}
+.net-bad{color:#e08a80;opacity:1}
 .ps-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px}
 .ps-btns .ps-wide{display:inline-flex;align-items:center;justify-content:center;gap:6px}
 .ps-btns svg{border-radius:50%}
@@ -638,5 +645,7 @@ body.lab-mode .play-only{display:none}
 <script src="js/profile.js?v=DEV"></script>
 <script src="ratings.js?v=DEV"></script>
 <script src="play.js?v=DEV"></script>
+<script src="js/lc-online.js?v=DEV"></script>
+<script src="js/lc-net.js?v=DEV"></script>
 </body>
 </html>
