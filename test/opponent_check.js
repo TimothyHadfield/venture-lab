@@ -37,6 +37,10 @@ const cut = (from, to) => {
   return L.slice(a, b).join('\n');
 };
 vm.runInContext(cut('const LAB = {', 'stubs the stack expects'), ctx);
+// These checks are about the LAB board's perfect-information bridge. Play mode
+// (the page default) hides your hand and the deck from the computer instead;
+// test/fair_check.js covers that.
+vm.runInContext('LAB.mode = "lab";', ctx);
 vm.runInContext(cut('function venturePotential(pile, pool', 'function labColorPotential'), ctx);
 vm.runInContext(read('computers.js'), ctx);
 // The bridge itself, plus the legality helper it shares with the built-in

@@ -25,9 +25,14 @@
 
 /* ---------------------------------------------------------------- settings */
 const LAB = {
-  revealDeck: true,   // draw pile face-up (default ON — this is the lab)
-  revealOpp:  true,   // opponent's hand face-up (default ON)
-  potential:  true,   // per-colour potential under each pile
+  // 'play' = the normal hidden-information game (the default since 2026-10-27:
+  // the opponent's hand and the deck are hidden, and a computer opponent gets a
+  // FAIR view — see _labFairView). 'lab' = the study board below: everything
+  // face-up. labSetMode switches; the reveal flags then follow the mode.
+  mode: 'play',
+  revealDeck: false,  // draw pile face-up (on in lab mode)
+  revealOpp:  false,  // opponent's hand face-up (on in lab mode)
+  potential:  false,  // per-colour potential under each pile (on in lab mode)
   assist: false,      // Venture Assistant (default OFF — it takes moves away)
   pickDraw: false,    // click any deck card to draw it (default OFF — see labPickDraw)
   ai: 'solid',        // 'casual' | 'solid' | 'sharp', or 'cpu:<key>' for a
@@ -340,8 +345,25 @@ function _labCpuView(slot){
     for (const c of CONFIG.colors) piles[s][c] = getCards(gameState, 'playPiles', s, c).slice();
   }
   for (const c of CONFIG.colors) discards[c] = getCards(gameState, 'discards', c).slice();
-  return duelView(slot, hands, piles, discards, getCards(gameState, 'drawPile').slice(),
-                  gameState.lastDiscardTarget, Math.random);
+  let deck = getCards(gameState, 'drawPile').slice();
+  if (LAB.mode === 'play'){
+    const fair = _labFairView(hands[opp], deck, Math.random);
+    hands[opp] = fair.hand; deck = fair.deck;
+  }
+  return duelView(slot, hands, piles, discards, deck, gameState.lastDiscardTarget, Math.random);
+}
+
+/* PLAY MODE: the computer must not see your hand or the deck order. The cards
+   it cannot see (your hand + the deck) are shuffled together and dealt back out
+   in the same sizes, so it plays on ONE plausible guess of the hidden cards —
+   it knows what is unseen, never where. Same objects, so nothing else changes. */
+function _labFairView(hand, deck, rng){
+  const unseen = hand.concat(deck);
+  for (let i = unseen.length - 1; i > 0; i--){
+    const j = Math.floor(rng() * (i + 1));
+    const t = unseen[i]; unseen[i] = unseen[j]; unseen[j] = t;
+  }
+  return { hand: unseen.slice(0, hand.length), deck: unseen.slice(hand.length) };
 }
 
 /* One decision — the card AND the draw, from the same pre-move view, which is
@@ -840,6 +862,7 @@ function _labRankColors(slot){
    swap places for no reason; then value, which keeps a colour's own run in
    ascending order the way it is played. */
 function _labHandCompare(rank, a, b){
+  if (typeof LAB !== 'undefined' && LAB.mode === 'play') rank = {};   // play mode: plain colour, then value (potential reads the deck)
   const d = (rank[b.color] || 0) - (rank[a.color] || 0);
   if (d) return d;
   const ci = CONFIG.colors.indexOf(a.color) - CONFIG.colors.indexOf(b.color);
@@ -980,6 +1003,7 @@ function _labTurnsBesideDeck(){
     layer.id = 'lab-turns-layer';
     board.appendChild(layer);
   }
+  if (LAB.mode === 'play'){ layer.innerHTML = ''; return; }   // a lab readout
   const row = document.getElementById('discard_draw');
   const cols = row ? row.querySelectorAll('.card-col') : [];
   const drawCol = cols[cols.length - 1];              // draw pile is always last
@@ -1250,15 +1274,18 @@ async function labPickDraw(cardId){
    GAME SETUP / TEARDOWN
    ========================================================================== */
 
-function newLabGame(){
+function newLabGame(first){
   selectedCard = null;
   lastPlayedCard = null;
   spreadPile = null;
   _labCancelAI();                     // the last game's opponent turn stops here
   _labCpuWarned = false;             // one computer-failure message per game
+  _labPeeked = LAB.mode === 'lab';   // a game started on the study board is a study game
 
   gameState = ENGINE.initGame(variant, false);
-  gameState.currentTurn = Math.random() < 0.5 ? 'player1' : 'player2';
+  // `first` (play.js): the match rule picks who starts rounds 2 and 3.
+  gameState.currentTurn = (first === 'player1' || first === 'player2') ? first
+                        : (Math.random() < 0.5 ? 'player1' : 'player2');
   _labResetTurnSnapshot();            // last game's discard tops mean nothing now
 
   createCardPool();
@@ -1372,6 +1399,7 @@ function _labSyncToggles(){
   set('lab-pot',  LAB.potential);
   set('lab-assist', LAB.assist);
   set('lab-pick',   LAB.pickDraw);
+  _labSaveStudy();
 }
 
 /* The info panel is permanent chrome down the left, so — exactly like the deck
@@ -1382,7 +1410,7 @@ const LAB_INFO_W = 170;                 // == #lab-info width in index.html
 const LAB_NARROW = '(max-width:600px)'; // == the phone @media in index.html
 function _labSetInfoInset(){
   // On a phone the panel is hidden (index.html), so it reserves nothing.
-  LAB.leftInset = window.matchMedia(LAB_NARROW).matches ? 0 : LAB_INFO_W + 8;   // + the panel's 4px offset each side
+  LAB.leftInset = (LAB.mode === 'play' || window.matchMedia(LAB_NARROW).matches) ? 0 : LAB_INFO_W + 8;   // + the panel's 4px offset each side
   document.getElementById('game-screen').style.paddingLeft = LAB.leftInset + 'px';
   computeLayout._vw = null;             // invalidate the layout cache
   renderGame._snapNextRender = true;
@@ -1395,6 +1423,45 @@ function _labSetTopInset(){
   LAB.topInset = document.getElementById('lab-bar').offsetHeight || 44;
   document.documentElement.style.setProperty('--lab-top', LAB.topInset + 'px');
   computeLayout._vw = null;             // invalidate the layout cache
+}
+
+/* ---- PLAY / LAB mode -------------------------------------------------------
+   Play = the real game (hidden hand and deck, plain hand order, no readouts).
+   Lab  = the study board, with the toggles as they were last left (first time:
+   deck columns, opponent hand and potential on, the lab's old defaults).
+   Remembered per browser. `_labPeeked` marks a game in which the lab tools were
+   opened, so play.js can leave it out of the player's stats. */
+const LAB_STUDY_DEFAULTS = { revealDeck: true, revealOpp: true, potential: true, assist: false, pickDraw: false };
+let _labStudy = null, _labPeeked = false;
+function labSetMode(mode, quiet){
+  mode = mode === 'lab' ? 'lab' : 'play';
+  if (LAB.mode === 'lab')
+    _labStudy = { revealDeck: LAB.revealDeck, revealOpp: LAB.revealOpp, potential: LAB.potential,
+                  assist: LAB.assist, pickDraw: LAB.pickDraw };
+  LAB.mode = mode;
+  if (mode === 'play') Object.assign(LAB, { revealDeck: false, revealOpp: false, potential: false, assist: false, pickDraw: false });
+  else {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('venture-lab-study') || 'null'); } catch (e){}
+    Object.assign(LAB, LAB_STUDY_DEFAULTS, saved || {}, _labStudy || {});
+    if (gameState && gameState.status !== 'finished') _labPeeked = true;
+  }
+  try { localStorage.setItem('venture-lab-mode', mode); } catch (e){}
+  document.body.classList.toggle('play-mode', mode === 'play');
+  document.body.classList.toggle('lab-mode', mode === 'lab');
+  if (quiet) return;
+  selectedCard = selectedCard && _labAssistBlocked().has(selectedCard.id) ? null : selectedCard;
+  _labSetTopInset();
+  _labSetInfoInset();
+  _labSetDeckPanel(mode === 'lab' && LAB.revealDeck);   // re-solves the board and renders
+  emit('labMode', mode);
+}
+
+/* Lab toggles are remembered for the next visit's lab mode. */
+function _labSaveStudy(){
+  if (LAB.mode !== 'lab') return;
+  try { localStorage.setItem('venture-lab-study', JSON.stringify({ revealDeck: LAB.revealDeck, revealOpp: LAB.revealOpp,
+        potential: LAB.potential, assist: LAB.assist, pickDraw: LAB.pickDraw })); } catch (e){}
 }
 
 function _labSetAssist(on){
@@ -1437,6 +1504,9 @@ function _labInit(){
     renderGame();
   };
 
+  let mode = 'play';
+  try { mode = localStorage.getItem('venture-lab-mode') || 'play'; } catch (e){}
+  labSetMode(mode, true);             // play (default) or the study board
   labSyncOpponentList();              // built-in levels + every computer
   _labHookHandOrder();                // hands read as a ranking, best colour left
   _labSetTopInset();                  // the bar's real height (it wraps on a phone)
