@@ -8,9 +8,12 @@
 <meta name="description" content="A perfect-information study board and strategy lab for the card game Venture (Lost Cities): every card face-up, computer players, duels and tournaments.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cinzel+Decorative:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&display=swap" rel="stylesheet">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Venture Lab">
+<link rel="stylesheet" href="fonts/fonts.css?v=DEV">
 <link rel="stylesheet" href="vendor/styles.css?v=DEV">
 <link rel="stylesheet" href="css/coach.css?v=DEV">
 <link rel="stylesheet" href="css/profile.css?v=DEV">
@@ -598,6 +601,7 @@ body.lab-mode .play-only{display:none}
 
 <!-- Vendored presentation stack — the live game's own client files, unchanged
      except for three clearly-marked LAB PATCH lines in rendering.js. -->
+<script src="js/pwa.js?v=DEV" data-version="DEV"></script>
 <script src="vendor/src/config.js?v=DEV"></script>
 <script src="vendor/src/events.js?v=DEV"></script>
 <script src="vendor/src/math.js?v=DEV"></script>

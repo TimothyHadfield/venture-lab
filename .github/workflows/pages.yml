@@ -41,7 +41,7 @@ jobs:
       # is exactly how "Lowest" broke while "Random" kept working: only Lowest
       # called a function that had moved into a file the browser had cached.
       - name: Cache-bust local assets
-        run: sed -i "s/?v=DEV/?v=${GITHUB_SHA::7}/g" index.html
+        run: sed -i -e "s/?v=DEV/?v=${GITHUB_SHA::7}/g" -e "s/data-version=\"DEV\"/data-version=\"${GITHUB_SHA::7}\"/g" index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: '.'

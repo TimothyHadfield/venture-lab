@@ -1,0 +1,10 @@
+{
+  "repo": "venture-lab",
+  "ready": "!!(document.querySelector('#play-menu') && typeof gameState !== 'undefined' && gameState && gameState.hands && gameState.hands[userSlot] && gameState.hands[userSlot].length === 8)",
+  "play": [
+    "(async () => { const w = ms => new Promise(r => setTimeout(r, ms)); LAB.aiDelayMs = 50; for (let i = 0; i < 100; i++) { if (gameState.currentTurn === userSlot && gameState.phase === 'play') break; await w(100); } window.__deckBefore = gameState.drawPile.length; const c = gameState.hands[userSlot][0]; selectCard(c.id); await w(50); await discardTo(c.color); await w(50); await drawFromDrawPile(); window.__moved = gameState.currentTurn !== userSlot; })()"
+  ],
+  "played": "!!window.__moved && gameState.currentTurn === userSlot && gameState.phase === 'play' && gameState.drawPile.length < window.__deckBefore",
+  "safe": "gameState.status = 'finished'; PLAY.active = false;",
+  "debug": "JSON.stringify({ deck: gameState.drawPile.length, before: window.__deckBefore, turn: gameState.currentTurn, me: userSlot, phase: gameState.phase, status: gameState.status, moved: window.__moved })"
+}

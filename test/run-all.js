@@ -30,6 +30,7 @@ const FAST = [
 const SLOW = [
   ['realist_check.js',   'reachable potential + The Patient, 400 paired games'],
   ['duel_check.js',      'the duel harness + The Broker, 120 games a matchup'],
+  ['../tools/pwa-check.mjs', 'home-screen install: offline play, new builds picked up (WebKit)'],
 ];
 
 const slow = process.argv.indexOf('--slow') >= 0;

@@ -445,7 +445,21 @@ function _playRouteSounds(){
 
 /* ------------------------------------------------------------- boot */
 
+/* Home-screen kit (js/pwa.js): may a new deploy reload the page by itself?
+   Only when nothing is lost. Games are not saved across a reload, so a deal in
+   progress (even untouched) or a match with rounds still to play is not safe. */
+function _playSafeToReload(){
+  if (document.querySelector('.play-sheet:not([hidden]):not(#play-result), .pf-ov, .coach-layer:not(.coach-off), .coach-offer')) return false;
+  const a = document.activeElement;
+  if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return false;
+  if ((typeof STATS !== 'undefined' && STATS.running) || (typeof CPU !== 'undefined' && CPU.running)) return false;
+  if (typeof gameState === 'undefined' || !gameState || gameState.status !== 'finished') return false;
+  if (PLAY.active && PLAY.results.length < PLAY.rounds) return false;
+  return true;
+}
+
 function _playInit(){
+  if (window.PWA) PWA.safeToReload = _playSafeToReload;
   _playLoad();
   labSyncOpponentList();
   _playSyncOpponent();
