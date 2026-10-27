@@ -51,6 +51,12 @@ function _playTotals(){
   for (const r of PLAY.results){ my += r.my; opp += r.opp; }
   return { my, opp };
 }
+/* The name over their hand: the computer's name, also for the built-in levels
+   (lab.js leaves those as "Opponent"). */
+function _playSyncOppName(){
+  const el = document.getElementById('opponent-name-store');
+  if (el) el.textContent = _playOppName();
+}
 function _playOppName(){
   const bot = _labCpuBot();
   if (bot) return bot.name;
@@ -109,10 +115,42 @@ function _playPaintMatch(){
   const t = _playTotals();
   const n = Math.min(PLAY.results.length + 1, PLAY.rounds);
   el.hidden = false;
-  el.innerHTML = '<span class="pm-r">Round ' + n + '/' + PLAY.rounds + '</span> '
+  el.innerHTML = '<span class="pm-r"><span class="pm-l">Round </span>' + n + '/' + PLAY.rounds + '</span> '
     + '<b>' + t.my + '</b><span class="pm-d">–</span><b>' + t.opp + '</b>';
   el.title = 'Match total so far: you ' + t.my + ', ' + _playOppName() + ' ' + t.opp;
 }
+
+/* Seeing the computer's move. Its whole turn takes about a second, so in Play
+   mode it is also said in words on the flash line, and a deal the computer
+   starts waits a moment so you see the board first. */
+const PLAY_CPU_NOTE_MS = 4500, PLAY_CPU_START_MS = 900;
+let _playCpuAct = null, _playStartPause = false;
+function _playCardName(c){
+  return c.color + (c.value === 0 ? ' wager' : ' ' + c.value);
+}
+function _playNoteCpu(kind, d){
+  if (LAB.mode !== 'play' || !_labAIBusy || d.player === userSlot) return;
+  if (kind !== 'draw'){ _playCpuAct = (kind === 'play' ? 'played ' : 'discarded ') + _playCardName(d.card); return; }
+  const drew = d.source === 'deck' ? 'drew from the deck' : 'took ' + _playCardName(d.card) + ' from the discards';
+  _labFlash(_playOppName() + ' ' + (_playCpuAct || '') + ' · ' + drew);
+  clearTimeout(_labFlashTimer);
+  _labFlashTimer = setTimeout(() => document.getElementById('lab-flash').classList.remove('on'), PLAY_CPU_NOTE_MS);
+  _playCpuAct = null;
+}
+const _labSetOpponentNameLab = _labSetOpponentName;
+_labSetOpponentName = function(){ _labSetOpponentNameLab(); _playSyncOppName(); };
+const _labAITurnLab = _labAITurn;
+_labAITurn = function(){
+  if (_playStartPause && LAB.mode === 'play'){
+    _playStartPause = false;
+    _labFlash(_playOppName() + ' starts');
+    const gen = _labAIGen;
+    setTimeout(() => { if (gen === _labAIGen) _labAITurnLab(); }, PLAY_CPU_START_MS);
+    return;
+  }
+  _playStartPause = false;
+  _labAITurnLab();
+};
 
 /* lab.js calls _labGameOver by name at the end of every deal. In a Play game the
    round result + match panel replaces the lab's one-line result. */
@@ -499,7 +537,10 @@ function _playInit(){
   });
   document.getElementById('play-lab').classList.toggle('on', LAB.mode === 'lab');
   // A new deal hides the folded result button.
-  on('newGame', () => { const r = document.getElementById('play-resume'); if (r) r.hidden = true; });
+  on('newGame', () => { const r = document.getElementById('play-resume'); if (r) r.hidden = true; _playStartPause = true; _playSyncOppName(); });
+  on('cardPlayed', d => _playNoteCpu('play', d));
+  on('cardDiscarded', d => _playNoteCpu('discard', d));
+  on('cardDrawn', d => _playNoteCpu('draw', d));
   // Opponent changed from the lab bar mid-match: keep the sheet's default in step.
   document.getElementById('lab-ai').addEventListener('change', _playSave);
 
