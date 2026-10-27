@@ -15,6 +15,7 @@
 <meta name="apple-mobile-web-app-title" content="Venture Lab">
 <link rel="stylesheet" href="fonts/fonts.css?v=DEV">
 <link rel="stylesheet" href="vendor/styles.css?v=DEV">
+<link rel="stylesheet" href="css/table.css?v=DEV">
 <link rel="stylesheet" href="css/coach.css?v=DEV">
 <link rel="stylesheet" href="css/profile.css?v=DEV">
 <style>
@@ -379,6 +380,13 @@ body.lab-mode .play-only{display:none}
   font:600 .95rem 'Crimson Pro',Georgia,serif;color:#241606;background:var(--gold,#d4a843);
   border:1px solid var(--gold,#d4a843);border-radius:999px;padding:6px 16px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.5)}
 #play-resume[hidden]{display:none}
+/* Real-table look (game-table kit): a dark wooden table under the board, kept in
+   the site's own brown palette so the cards read exactly as before. The vendor's
+   #game-screen background is an id rule, so the surface is restated here. */
+#game-screen.tbl-surface{--tbl-base:#2a190d;--tbl-light:rgba(255,214,150,.13);--tbl-vig:rgba(0,0,0,.55);color:inherit;
+  background-color:var(--tbl-base);
+  background-image:radial-gradient(ellipse 120% 95% at 50% 42%,transparent 52%,var(--tbl-vig) 100%),radial-gradient(ellipse 70% 55% at 50% 38%,var(--tbl-light),transparent 75%),var(--tbl-tex);
+  background-size:100% 100%,100% 100%,var(--tbl-tex-size)}
 </style>
 </head>
 <body>
@@ -408,7 +416,7 @@ body.lab-mode .play-only{display:none}
   <button id="play-rules" class="lab-icon" title="Rules" aria-label="Rules">?</button>
   <button id="play-menu" class="lab-icon" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" width="1.05em" height="1.05em" fill="currentColor" aria-hidden="true"><use href="#icon-gear"/></svg></button>
 </div>
-<div id="game-screen" class="screen active">
+<div id="game-screen" class="screen active tbl-surface tbl-wood-dark">
   <span id="opponent-name-store" style="display:none">Opponent</span>
 
   <div class="board-area">
