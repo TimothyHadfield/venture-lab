@@ -26,8 +26,12 @@ const PLAY = {
   recorded: false,           // the match is in My stats already
   daily: null,               // 'YYYY-MM-DD' when this is the Daily game
   tutorial: false,
+  six: false,                // New game sheet: the sixth colour (purple, 72 cards); off by default
+  matchSix: false,           // the match on the table uses six colours
+  counted: false,            // this deal's result is in PLAY.results already
 };
 const PLAY_KEY = 'venture-lab-play';
+const PLAY_SAVE_KEY = 'venture-lab-match';   // the match in progress, resumed after a reload
 
 function _playLoad(){
   try {
@@ -35,11 +39,12 @@ function _playLoad(){
     if (s){
       if (s.rounds === 1 || s.rounds === 3) PLAY.rounds = s.rounds;
       if (typeof s.ai === 'string') LAB.ai = s.ai;
+      PLAY.six = s.six === true;
     }
   } catch (e){}
 }
 function _playSave(){
-  try { localStorage.setItem(PLAY_KEY, JSON.stringify({ rounds: PLAY.rounds, ai: LAB.ai })); } catch (e){}
+  try { localStorage.setItem(PLAY_KEY, JSON.stringify({ rounds: PLAY.rounds, ai: LAB.ai, six: PLAY.six })); } catch (e){}
 }
 
 const _opp = () => (userSlot === 'player1' ? 'player2' : 'player1');
@@ -51,6 +56,50 @@ function _playTotals(){
   for (const r of PLAY.results){ my += r.my; opp += r.opp; }
   return { my, opp };
 }
+/* Per-colour lines for the round result: every colour either side started, in
+   colour order, each side as { score, line } ("(33 − 20) × 3 + 20") or null
+   when that side never started it. `my`/`opp` are MATH.scoreBreakdown(...).breakdown. */
+function playColourRows(my, opp){
+  const cell = b => {
+    if (!b || !b.count) return null;
+    let line = b.sum + ' − ' + CONFIG.scoring.baseCost;
+    if (b.wagers) line = '(' + line + ') × ' + (b.wagers + 1);
+    if (b.bonus) line += ' + ' + CONFIG.scoring.bonusPoints;
+    return { score: b.score, line };
+  };
+  const rows = [];
+  for (const c of CONFIG.colors){
+    const a = cell(my[c]), b = cell(opp[c]);
+    if (a || b) rows.push({ color: c, my: a, opp: b });
+  }
+  return rows;
+}
+
+/* A saved match (localStorage PLAY_SAVE_KEY) is resumed only if it is whole:
+   this format, a live round of an unfinished match, and every card of a
+   5- or 6-colour deck exactly once. Anything else is thrown away. */
+function playSaveValid(s){
+  try {
+    if (!s || s.v !== 1 || !(s.colors === 5 || s.colors === 6)) return false;
+    if (s.userSlot !== 'player1' && s.userSlot !== 'player2') return false;
+    const p = s.play, g = s.gameState;
+    if (!p || !(p.rounds === 1 || p.rounds === 3) || !Array.isArray(p.results) || p.results.length >= p.rounds) return false;
+    if (!g || !g.hands || !g.playPiles || !g.discards || !Array.isArray(g.drawPile)) return false;
+    const cols = CONFIG.allColors.slice(0, s.colors);
+    const ids = [];
+    for (const slot of ['player1', 'player2']){
+      ids.push(...g.hands[slot].map(c => c.id));
+      for (const c of cols) ids.push(...g.playPiles[slot][c].map(x => x.id));
+    }
+    for (const c of cols) ids.push(...g.discards[c].map(x => x.id));
+    ids.push(...g.drawPile.map(c => c.id));
+    const per = CONFIG.wagerCount + CONFIG.numberRange[1] - CONFIG.numberRange[0] + 1;
+    if (ids.length !== cols.length * per || new Set(ids).size !== ids.length) return false;
+    return ids.every(id => cols.includes(String(id).split('_')[0]));
+  } catch (e){ return false; }
+}
+/* end of the pure helpers */
+
 /* The name over their hand: the computer's name, also for the built-in levels
    (lab.js leaves those as "Opponent"). */
 function _playSyncOppName(){
@@ -86,6 +135,8 @@ function playStartMatch(opts){
   _playEight = false;
   PLAY.daily = opts.daily || null;
   PLAY.tutorial = !!opts.tutorial;
+  // The sixth colour is a New-game choice; the Daily game and the guided game are always five.
+  PLAY.matchSix = PLAY.six && !opts.daily && !opts.tutorial;
   _playHideResult();
   const first = opts.first || (Math.random() < 0.5 ? 'player1' : 'player2');
   _playNewRound(first, opts.deckRng);
@@ -93,6 +144,8 @@ function playStartMatch(opts){
 
 function _playNewRound(first, deckRng){
   PLAY.first = first;
+  PLAY.counted = false;
+  setVentureCount(PLAY.matchSix ? 6 : 5);
   // A seeded deal (Daily game) swaps Math.random only for the shuffle.
   if (deckRng){
     const real = Math.random;
@@ -161,9 +214,10 @@ _labGameOver = function(){
 };
 
 function _playRoundOver(){
-  if (PLAY.results.length >= PLAY.rounds) return;           // already counted
+  if (PLAY.results.length >= PLAY.rounds || PLAY.counted) return;   // already counted
   const my = _playScore(userSlot), opp = _playScore(_opp());
   PLAY.results.push({ my, opp, first: PLAY.first });
+  PLAY.counted = true;
   if (_labPeeked) PLAY.peeked = true;
   if (_playRoundEight()) _playEight = true;
   renderGame();
@@ -176,6 +230,7 @@ function _playRoundOver(){
     rec = _playRecord(t);
   }
   _playShowResult(done, my, opp, t, rec);
+  _playSaveMatch();
   if (typeof COACH !== 'undefined') COACH.emit('roundOver');
   if (window.FX){
     const won = done ? t.my > t.opp : my > opp;
@@ -200,6 +255,17 @@ function _playShowResult(done, my, opp, t, rec){
   const rows = PLAY.results.map((r, i) =>
     '<tr><td>' + (multi ? 'Round ' + (i + 1) : 'Score') + '</td><td class="n">' + r.my + '</td><td class="n">' + r.opp + '</td></tr>').join('');
   const tot = multi ? '<tr class="tot"><td>Total</td><td class="n">' + t.my + '</td><td class="n">' + t.opp + '</td></tr>' : '';
+  // This deal, colour by colour: (sum − 20) × (1 + wagers) + bonus.
+  let by = '';
+  if (gameState){
+    const cell = x => x ? '<td class="n">' + x.score + '<small>' + x.line + '</small></td>' : '<td class="n pr-none">–</td>';
+    const cr = playColourRows(MATH.scoreBreakdown(gameState.playPiles[userSlot] || {}).breakdown,
+                              MATH.scoreBreakdown(gameState.playPiles[_opp()] || {}).breakdown);
+    if (cr.length) by = '<table class="pr-t pr-c"><thead><tr><th>' + (multi ? 'Round ' + PLAY.results.length + ' by colour' : 'By colour') + '</th><th></th><th></th></tr></thead><tbody>'
+      + cr.map(r => '<tr><td><i class="pr-dot" style="background:' + (CONFIG.colorHex[r.color] || '#888') + '"></i>'
+        + _esc2(CONFIG.colorLabels[r.color] || r.color) + '</td>' + cell(r.my) + cell(r.opp) + '</tr>').join('')
+      + '</tbody></table>';
+  }
   const a = done ? t.my : my, b = done ? t.opp : opp;
   const head = !done ? (my > opp ? 'You won round ' : my < opp ? name + ' won round ' : 'Round ' ) + PLAY.results.length + (my === opp ? ' tied' : '')
              : (a > b ? (multi ? 'You win the match' : 'You win') : a < b ? name + (multi ? ' wins the match' : ' wins') : 'A tie');
@@ -211,6 +277,7 @@ function _playShowResult(done, my, opp, t, rec){
   el.innerHTML = '<div class="box" role="dialog" aria-label="Result">'
     + '<h2>' + head + '</h2>'
     + '<table class="pr-t"><thead><tr><th></th><th>You</th><th>' + name + '</th></tr></thead><tbody>' + rows + tot + '</tbody></table>'
+    + by
     + foot
     + '<div class="acts">'
     + (done ? '<button type="button" data-act="stats">My stats</button><button type="button" class="primary" data-act="again">Play again</button>'
@@ -340,6 +407,10 @@ function playOpenNewGame(){
     '<h2>New game</h2>'
     + '<label class="ps-row"><span>Opponent</span><select id="ps-ai">' + html + '</select></label>'
     + '<div class="ps-row"><span>Length</span><span class="ps-seg">' + seg(1, '1 round') + seg(3, '3 rounds') + '</span></div>'
+    + '<div class="ps-row"><span>Sixth colour</span><span class="ps-seg">'
+    + '<button type="button" data-act="six" data-on="0" class="' + (PLAY.six ? '' : 'on') + '">Off</button>'
+    + '<button type="button" data-act="six" data-on="1" class="' + (PLAY.six ? 'on' : '') + '">On</button></span></div>'
+    + '<p class="ps-note">Adds purple: 72 cards, longer rounds. Not online.</p>'
     + '<div class="acts"><button type="button" data-act="online" id="ps-online" hidden>Online</button>'
     + '<button type="button" data-act="cancel">Cancel</button>'
     + '<button type="button" class="primary" data-act="start">Deal</button></div>',
@@ -347,6 +418,9 @@ function playOpenNewGame(){
       if (act === 'len'){
         PLAY.rounds = +b.dataset.n;
         wrap.querySelectorAll('[data-act=len]').forEach(x => x.classList.toggle('on', x === b));
+      } else if (act === 'six'){
+        PLAY.six = b.dataset.on === '1';
+        wrap.querySelectorAll('[data-act=six]').forEach(x => x.classList.toggle('on', x === b));
       } else if (act === 'cancel') _playCloseSheet();
       else if (act === 'online'){ _playCloseSheet(); if (typeof playOnlineOpen === 'function') playOnlineOpen(); }
       else if (act === 'start'){
@@ -383,6 +457,15 @@ function playOpenSettings(){
 
 /* ------------------------------------------------------------- rules */
 
+/* Checked 2026-10-28 with youtube.com/oembed (200, titles as below). */
+const PLAY_VIDEOS = [
+  { id: 'KEW8STc6wpA', title: 'How to Play Lost Cities in 3 Minutes', by: 'The Rules Girl' },
+  { id: '3h0n48Vf4Qg', title: 'How to Play Lost Cities', by: 'Casual Cardboard' },
+  { id: 'yWp4tHAWqIg', title: 'Get better at Lost Cities: basic strategy', by: 'Boardgaming Life' },
+  { id: 'EAq--8-4Lo8', title: 'Lost Cities Unboxing and Basic Strategy', by: 'Show Me How To Win' },
+  { id: 'Rz1F-dceEnM', title: 'Lost Cities Review', by: 'The Dice Tower' },
+];
+
 const PLAY_RULES = [
   { id: 'goal', title: 'Goal', short: 'Goal', html:
     '<p>Two players, five colours of cards. Over the game you build <b>ventures</b>: one row per colour on your side. '
@@ -411,6 +494,14 @@ const PLAY_RULES = [
   { id: 'match', title: 'A match', short: 'Match', html:
     '<p>A match is <b>3 rounds</b>; points add up and the higher total wins. You can also play a single round (New game).</p>'
   + '<p>After round 1, whoever has more points so far starts the next round.</p>' },
+  { id: 'six', title: 'Sixth colour', short: 'Sixth', html:
+    '<p>An option in New game, off by default: a <b>sixth colour (purple)</b> joins the deck, 72 cards in all. '
+  + 'Same rules and scoring; rounds run longer and there is one more venture to choose from.</p>'
+  + '<p class="tip">Against the computer only, not in online rooms. Statistics in the lab always use five colours.</p>' },
+  { id: 'videos', title: 'Videos', short: 'Videos', html:
+    '<p>Lost Cities on YouTube (Venture plays the same):</p><ul>'
+  + PLAY_VIDEOS.map(v => '<li><a href="https://www.youtube.com/watch?v=' + v.id + '" target="_blank" rel="noopener">' + v.title + '</a> · ' + v.by + '</li>').join('')
+  + '</ul>' },
   { id: 'lab', title: 'Lab tools', short: 'Lab', html:
     '<p>Tap <b>Lab</b> in the top bar to open the study board: the opponent’s hand and the whole deck face up, '
   + 'potential under every pile, the Assistant, pick draw and Statistics. Tap Lab again to go back.</p>'
@@ -481,6 +572,72 @@ function _playRouteSounds(){
   for (const k of Object.keys(map)) SFX[k] = () => { try { FX.play(map[k]); } catch (e){} };
 }
 
+/* ------------------------------------------------------------- saved match */
+
+/* The match in progress is saved at every turn boundary and resumed after a
+   reload. Not saved: a study game started in the lab, the guided game, online
+   rooms (the room has its own resume), and never in the middle of the
+   computer's turn (it decides its card and draw together). */
+const _playOnline = () => typeof NET !== 'undefined' && NET.on;
+function playClearSave(){ try { localStorage.removeItem(PLAY_SAVE_KEY); } catch (e){} }
+function _playSaveMatch(){
+  if (!PLAY.active || PLAY.tutorial || _playOnline()){ playClearSave(); return; }
+  if (!gameState) return;
+  if (PLAY.results.length >= PLAY.rounds){ playClearSave(); return; }
+  if (gameState.currentTurn !== userSlot && gameState.phase === 'draw' && gameState.status !== 'finished') return;
+  try {
+    localStorage.setItem(PLAY_SAVE_KEY, JSON.stringify({
+      v: 1, colors: CONFIG.colors.length, userSlot, ai: LAB.ai, labPeeked: _labPeeked,
+      play: { rounds: PLAY.rounds, results: PLAY.results, first: PLAY.first, peeked: PLAY.peeked,
+              daily: PLAY.daily, matchSix: PLAY.matchSix, counted: PLAY.counted, eight: _playEight },
+      gameState }));
+  } catch (e){}
+}
+function _playResume(){
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(PLAY_SAVE_KEY) || 'null'); } catch (e){}
+  if (!s) return false;
+  if (!playSaveValid(s)){ playClearSave(); return false; }
+  try { if (localStorage.getItem('online.lost-cities')) return false; } catch (e){}   // the room resumes instead
+  _labCancelAI();
+  setVentureCount(s.colors);
+  userSlot = s.userSlot;
+  LAB.ai = s.ai;
+  _playSyncOpponent();
+  const p = s.play;
+  Object.assign(PLAY, { active: true, recorded: false, tutorial: false, rounds: p.rounds, results: p.results,
+                        first: p.first, peeked: !!p.peeked, daily: p.daily || null, matchSix: !!p.matchSix, counted: !!p.counted });
+  _playEight = !!p.eight;
+  _labPeeked = !!s.labPeeked;
+  gameState = s.gameState;
+  selectedCard = null; lastPlayedCard = null; spreadPile = null;
+  _labResetTurnSnapshot();
+  createCardPool();
+  renderGame._snapNextRender = true;
+  renderGame();
+  _playPaintMatch();
+  if (gameState.status === 'finished'){
+    if (!PLAY.counted) _playRoundOver();
+    else {
+      const last = PLAY.results[PLAY.results.length - 1];
+      _playShowResult(false, last.my, last.opp, _playTotals(), null);
+    }
+  } else {
+    _labFlash(PLAY.rounds > 1 ? 'Match resumed: round ' + (PLAY.results.length + 1) : 'Game resumed');
+    if (gameState.currentTurn !== userSlot) _labAITurn();
+  }
+  return true;
+}
+
+/* The lab's Statistics, computer runs, duels and tournaments are measured on
+   the five-colour game (their score ranges are fixed at load). */
+function _playFiveOnly(run){
+  return function(){
+    if (CONFIG.colors.length !== 5){ _labFlash('Statistics use five colours: tap New first'); return; }
+    return run.apply(this, arguments);
+  };
+}
+
 /* ------------------------------------------------------------- boot */
 
 /* Home-screen kit (js/pwa.js): may a new deploy reload the page by itself?
@@ -518,7 +675,7 @@ function _playInit(){
   const newBtn = document.getElementById('lab-new');
   newBtn.onclick = () => {
     SFX.select();
-    if (LAB.mode === 'lab'){ PLAY.active = false; _playHideResult(); _playPaintMatch(); newLabGame(); }
+    if (LAB.mode === 'lab'){ PLAY.active = false; playClearSave(); setVentureCount(5); _playHideResult(); _playPaintMatch(); newLabGame(); }
     else playOpenNewGame();
   };
   document.getElementById('play-lab').onclick = () => {
@@ -554,9 +711,21 @@ function _playInit(){
   // Escape closes a sheet.
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && _playSheetOpen()) _playCloseSheet(); });
 
-  // The page opened in Play: the deal on the table becomes round 1.
-  if (LAB.mode === 'play'){
+  // Every turn boundary saves the match in progress.
+  on('turnChanged', _playSaveMatch);
+  on('stateChanged', _playSaveMatch);
+  on('newGame', () => setTimeout(_playSaveMatch, 0));
+  if (typeof statsRun === 'function') statsRun = _playFiveOnly(statsRun);
+  if (typeof cpuRun === 'function') cpuRun = _playFiveOnly(cpuRun);
+  if (typeof duelRun === 'function') duelRun = _playFiveOnly(duelRun);
+  if (typeof tourneyRun === 'function') tourneyRun = _playFiveOnly(tourneyRun);
+
+  // A match saved before a reload carries on; otherwise, opened in Play, the
+  // deal on the table becomes round 1.
+  const resumed = _playResume();
+  if (!resumed && LAB.mode === 'play'){
     PLAY.active = true; PLAY.results = []; PLAY.first = gameState ? gameState.currentTurn : 'player1';
+    PLAY.matchSix = false; PLAY.counted = false;
   }
   _playPaintMatch();
   _labSetTopInset();

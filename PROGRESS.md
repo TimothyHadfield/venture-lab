@@ -61,6 +61,34 @@ Live at <https://timothyhadfield.github.io/venture-lab/>.
   errors except WebKit's aborted Firestore channel at the reload itself.
   NOT verified: real iPhones; the lab tools are blocked online (fake cards).
   Tim's calls: wording ("Online", "Make a room", "Leave room"), no rematch button.
+- **2026-10-28 wave 3 (play.js, index.html CSS, 2 lines in lc-net.js):**
+  - **Round result by colour:** under the score table, every colour either side
+    started: score + "(sum − 20) × (1 + wagers) + 20" (`playColourRows`).
+  - **Match saved across reload:** `venture-lab-match` in localStorage, written at
+    every turn boundary (never mid computer turn), resumed by `_playResume` in
+    `_playInit` (whole-deck check `playSaveValid`); cleared at match end, Lab New,
+    the guided game and on entering an online room (the room resumes itself).
+  - **Sixth colour** (New game → Sixth colour Off/On, off by default; purple, 72
+    cards; the vendor already had `setVentureCount` + purple art). Set per deal in
+    `_playNewRound`; Daily/guided game, Lab New and online rooms are always 5.
+    Lab Statistics/computer runs/duel/tournament refuse to run on 6 colours (score
+    ranges fixed at load) with a flash "Statistics use five colours: tap New first".
+    Measured: every Play opponent finishes six-colour games legally with all 72
+    cards (`test/play_check.js`, 120 games, purple played in 119).
+  - **Rules → Videos** (checked with youtube oembed = 200 on 10-28):
+    KEW8STc6wpA "How to Play Lost Cities in 3 Minutes" (The Rules Girl),
+    3h0n48Vf4Qg "How to Play Lost Cities" (Casual Cardboard), yWp4tHAWqIg "Get
+    better at Lost Cities - Board Game Strategy" (Boardgaming Life), EAq--8-4Lo8
+    "Lost Cities Unboxing and Basic Strategy" (Show Me How To Win), Rz1F-dceEnM
+    "Lost Cities Review" (The Dice Tower). Plus a "Sixth colour" rules section.
+  - **Laptop board size NOT changed:** measured, the board is height-bound (card
+    95 px tall at 1440×900, 74 px at 1280×720; hand to bottom bar uses the full
+    height), so a bigger board needs a third edit to vendor `layout.js`'s solve.
+  - Found, not fixed: computer-vs-computer games can stall (~1 in 2,000 deals,
+    both seats taking each other's discards forever); a human seat never does.
+  - NOT verified: real iPhone; landscape result panel scrolls inside (buttons
+    below the fold at 734×343). Tim's calls: name "Sixth colour", the note
+    wording, breakdown layout.
 
 ---
 

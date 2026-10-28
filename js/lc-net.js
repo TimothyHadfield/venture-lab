@@ -158,6 +158,8 @@ function _netEnter(s){
   document.body.classList.add('net-on');
   userSlot = _netSlot(s.mySeat);
   selectedCard = null; lastPlayedCard = null; spreadPile = null;
+  if (typeof setVentureCount === 'function') setVentureCount(5);   // rooms are the five-colour game
+  if (typeof playClearSave === 'function') playClearSave();         // the local match gives way to the room
   createCardPool();                         // first render places every card without flying
   const other = s.seats[1 - s.mySeat];
   const el = document.getElementById('opponent-name-store');
