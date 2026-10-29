@@ -1,4 +1,4 @@
-/* coach.css: guided first game + rules sheet (game-coach 1.0.0). Copy unchanged into css/coach.css.
+/* coach.css: guided first game + rules sheet (game-coach 1.2.0). Copy unchanged into css/coach.css.
    Looks like paper on the table: a cream note card for the coach, a printed rulebook sheet for the rules.
    Theme with the variables below (set them on :root in the game's own css). Original look only. */
 :root {
@@ -12,6 +12,8 @@
   --coach-dim: rgba(6, 8, 12, .58);
   --coach-z: 60;
   /* --coach-offer-bottom: the offer card's gap from the bottom (set it above a bottom tab bar) */
+  /* --coach-offer-top: its gap from the top with COACH.offer({ place: 'top' | 'auto' }) (default 10px) */
+  /* --coach-link: link colour inside the rules sheet (default dark ink-blue #2a4f9e) */
   --coach-font: inherit;
 }
 
@@ -34,6 +36,11 @@
   box-shadow: 0 1px 0 rgba(255,255,255,.7) inset, 0 10px 28px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.3);
   font-size: 15px; line-height: 1.42; -webkit-text-size-adjust: 100%;
 }
+/* a note squeezed by a big target keeps its title and buttons; only the text scrolls */
+.coach-bubble { display: flex; flex-direction: column; }
+.coach-bubble > .coach-title, .coach-bubble > .coach-row { flex-shrink: 0; }
+.coach-bubble > .coach-text { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.coach-bubble > .coach-text > :last-child { margin-bottom: 0; }
 .coach-title { display: block; font-size: 16px; margin: 0 0 3px; }
 .coach-text { margin: 0 0 9px; }
 .coach-text p { margin: 0 0 6px; }
@@ -71,7 +78,8 @@
 .coach-rules-head b { flex: 1; font-size: 18px; letter-spacing: .01em; }
 .coach-x { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--coach-line); background: #fff; color: var(--coach-ink);
   font-size: 22px; line-height: 1; cursor: pointer; touch-action: manipulation; }
-.coach-rules-nav { display: flex; gap: 6px; padding: 4px 12px 8px; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--coach-line); flex-shrink: 0; }
+/* the tabs wrap onto a second row on a phone: every section shows, nothing scrolls sideways */
+.coach-rules-nav { display: flex; flex-wrap: wrap; gap: 6px; row-gap: 6px; padding: 4px 12px 8px; overflow-x: visible; scrollbar-width: none; border-bottom: 1px solid var(--coach-line); flex-shrink: 0; }
 .coach-rules-nav::-webkit-scrollbar { display: none; }
 .coach-rules-nav button { flex: 0 0 auto; min-height: 34px; padding: 0 12px; border-radius: 17px; border: 1px solid var(--coach-line); background: rgba(255,255,255,.65);
   color: var(--coach-ink); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; touch-action: manipulation; }
@@ -88,6 +96,15 @@
 .coach-rules-body table { border-collapse: collapse; margin: 4px 0 10px; font-size: 14.5px; }
 .coach-rules-body td, .coach-rules-body th { border: 1px solid var(--coach-line); padding: 4px 8px; text-align: left; vertical-align: top; }
 .coach-rules-body .tip { display: block; background: rgba(255,255,255,.6); border-left: 3px solid var(--coach-accent); padding: 6px 10px; border-radius: 0 8px 8px 0; margin: 4px 0 10px; font-size: 14.5px; }
+/* links: dark ink-blue on the cream paper (the sites' own link colour is light and unreadable here). Low
+   specificity on purpose: it beats a site-wide `a { color }`, and a game's own rule
+   (`.coach-rules-body a`, `.vids a`) still wins. */
+.coach-rules-body :where(a, a:link, a:visited) { color: var(--coach-link, #2a4f9e); text-decoration: underline; text-underline-offset: 2px; }
+.coach-rules-body :where(a):focus-visible { outline: 2px solid var(--coach-link, #2a4f9e); outline-offset: 2px; border-radius: 3px; }
+.coach-rules-body .coach-vids { list-style: none; padding-left: 0; }
+.coach-rules-body .coach-vids li { margin: 0 0 8px; }
+.coach-rules-body .coach-vids a { font-weight: 600; }
+.coach-vid-ch { display: block; color: var(--coach-muted); font-size: 13.5px; }
 .coach-rules-intro { color: var(--coach-muted); margin: 6px 0 4px !important; }
 .coach-rules-foot { color: var(--coach-muted); font-size: 13px; margin-top: 12px !important; }
 /* laptop: a centred page instead of a bottom sheet */

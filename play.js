@@ -739,7 +739,8 @@ function _playInit(){
     setTimeout(() => {
       try {
         COACH.offer({ id: 'venture-first', title: 'First time here?', text: 'A short guided game shows how to play.',
-                      yes: 'Show me', no: 'No thanks', onYes: () => playStartTutorial() });
+                      yes: 'Show me', no: 'No thanks', onYes: () => playStartTutorial(),
+                      place: 'auto', avoid: ['#hand_user'] });
       } catch (e){}
     }, 600);
   }
