@@ -89,6 +89,11 @@ Live at <https://timothyhadfield.github.io/venture-lab/>.
   - NOT verified: real iPhone; landscape result panel scrolls inside (buttons
     below the fold at 734×343). Tim's calls: name "Sixth colour", the note
     wording, breakdown layout.
+- **2026-10-28 kit sweep (adb0bd2):** game-coach 1.0.0 → 1.2.0 (first-visit offer
+  `place:'auto', avoid:['#hand_user']`: it covered your hand, now sits under the top
+  bar, 0 overlap at 393x659/320x568/659x393, live too) and game-pwa 1.4.0
+  (pwa-check 18/18). All lab/stats/builder/New-game `<select>`s drawn by the page
+  (`appearance:none` + gold arrow, CSS after `.play-sheet select option`).
 
 ---
 

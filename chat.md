@@ -12,3 +12,6 @@
 - **Built:** per-colour breakdown in the round result; match saved across reload; Sixth colour option (purple, 72 cards; Play vs computer only); Rules → Videos (5 checked links). Laptop board size skipped (height-bound, would need a vendor layout edit).
 - **Verified:** `node test/run-all.js` green incl. new `play_check.js` (fails on the old play.js: slice not found); headless WebKit 393 / 320 (iPhone SE) / landscape / 1440 / 1280: six columns fit, no sideways scroll, no console errors; reload mid round 2 resumed the same deck, hand, results and 6 colours; match end clears the save; Statistics refused on 6 colours.
 - **Open (Tim):** name "Sixth colour"; landscape result panel scrolls; bigger laptop board needs a vendor layout change.
+
+## 2026-10-28 — kit sweep (builder b4)
+- Built adb0bd2: game-coach 1.2.0 (offer off your hand) + game-pwa 1.4.0 + page-drawn dark selects. Verified: run-all green (build_check flaked once, re-run green), pwa-check 18/18, offer rects at 3 sizes (0 overlap), sheets at 320 px 286/286, deploy workflow success, live-check LIVE + live offer re-measured.
